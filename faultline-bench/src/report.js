@@ -187,6 +187,7 @@ function buildHtml(report, outDir) {
 <span class="muted">· tests ${a.tests.passed}/${a.tests.total} · ${fmtDuration(a.durationMs)} · ${a.changes.files.length} files (+${a.changes.insertions} −${a.changes.deletions})${a.usage.costUsd != null ? ' · ' + fmtCost(a.usage.costUsd) : ''}</span></summary>
 <div class="body">
 ${a.touchedTests.length ? `<p class="warn">Note: the agent edited test files (${esc(a.touchedTests.join(', '))}). Grading uses separate hidden tests, so this does not affect the score.</p>` : ''}
+${a.errorHint ? `<p class="warn">Agent error: ${esc(a.errorHint)}</p>` : ''}
 ${a.tests.failures.length ? `<h4>Failing hidden tests</h4><ul>${a.tests.failures.map((f) => `<li>${esc(f)}</li>`).join('')}</ul>` : ''}
 <h4>Code changes</h4>${diffHtml(diff)}
 <h4>Agent output (tail)</h4><pre class="log">${esc(log) || '<span class="muted">No output.</span>'}</pre>
@@ -210,7 +211,7 @@ header{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;
 .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}
 .card .big{font-size:26px;font-weight:700}
 h2{margin:36px 0 12px;font-size:18px}
-table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+main .scroll{overflow-x:auto;border-radius:10px}table{width:100%;min-width:640px;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
 th,td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
 th{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600}
 td.rank{font-weight:700;color:var(--accent);width:32px}
@@ -243,16 +244,16 @@ a{color:var(--accent)}
 </section>
 
 <h2>Leaderboard</h2>
-<table>
+<div class="scroll"><table>
 <tr><th>#</th><th>Agent</th><th>Solved</th><th>Hidden tests passed</th><th>Median time</th><th>Tokens</th><th>Cost</th>${config.repeat > 1 ? '<th>Consistent</th><th>Solved every run</th>' : ''}<th>Failure reasons</th></tr>
 ${leaderboard}
-</table>
+</table></div>
 <p class="muted">Solved = every hidden test passes. Hidden tests are copied in only after the agent finishes, so agents cannot see or edit them. Tokens and cost appear only when the agent CLI reports them; subscription plans often report tokens but no price.${config.repeat > 1 ? ' Consistent = share of scenarios where all repeated runs gave the same result.' : ' Run with --repeat 3 to measure reliability.'}</p>
 
 <h2>Scenario matrix</h2>
-<table><tr><th>Scenario</th>${matrixHead}</tr>
+<div class="scroll"><table><tr><th>Scenario</th>${matrixHead}</tr>
 ${matrixRows}
-</table>
+</table></div>
 
 <h2>Every attempt</h2>
 ${details}

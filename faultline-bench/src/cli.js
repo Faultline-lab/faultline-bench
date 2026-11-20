@@ -248,7 +248,7 @@ async function cmdRun(opts) {
       inFlight.delete(key);
       const r = ev.result;
       const mark = r.passed ? c.green('✓') : c.red('✗');
-      const why = r.passed ? '' : c.dim(`  ${CATEGORY_LABEL[r.category]}`);
+      const why = r.passed ? '' : c.dim(`  ${CATEGORY_LABEL[r.category]}${r.errorHint ? `: ${r.errorHint.slice(0, 90)}` : ''}`);
       const cost = r.usage.costUsd != null ? c.dim(`  ${fmtCost(r.usage.costUsd)}`) : '';
       console.log(
         `  ${mark} ${nameOf(r.agent).padEnd(nameWidth)}  ${(r.scenario + (repeat > 1 ? ` #${r.rep}` : '')).padEnd(26)} ${String(`${r.tests.passed}/${r.tests.total}`).padStart(5)} tests  ${fmtDuration(r.durationMs).padStart(6)}${cost}${why}  ${c.dim(`[${ev.finished}/${ev.total}]`)}`

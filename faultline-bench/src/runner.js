@@ -9,6 +9,14 @@ const { PROMPT, runBuiltin } = require('./agents');
 const GIT_ID = ['-c', 'user.email=bench@faultline.local', '-c', 'user.name=Faultline Bench', '-c', 'commit.gpgsign=false', '-c', 'core.autocrlf=false'];
 const HIDDEN_DIR = '.faultline-hidden';
 
+// Same environment the user has, minus variables that make a CLI think it is
+// nested inside another agent session (e.g. running Faultline from Claude Code).
+function agentEnv() {
+  const env = { ...process.env, FORCE_COLOR: '0', NO_COLOR: '1' };
+  for (const k of Object.keys(env)) if (/^(CLAUDECODE|CLAUDE_CODE_ENTRYPOINT|CODEX_SANDBOX.*|CODEX_THREAD_ID)$/i.test(k)) delete env[k];
+  return env;
+}
+
 function git(cwd, args) {
   return runSync('git', [...GIT_ID, ...args], { cwd, maxBuffer: 32 * 1024 * 1024 });
 }
@@ -85,6 +93,20 @@ function classify({ agentResult, tests, changes }) {
   return 'tests_failed';
 }
 
+// Pulls the most useful error line out of an agent's output, so the user sees
+// "model not supported" instead of just "crashed".
+function errorHint(stdout, stderr) {
+  const lines = `${stdout || ''}\n${stderr || ''}`.split(/\r?\n/).filter((l) => l.trim());
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const l = lines[i];
+    if (!/error|failed|denied|not found|unauthori[sz]ed|quota|limit/i.test(l)) continue;
+    const msgs = [...l.matchAll(/\\?"message\\?"\s*:\s*\\?"((?:[^"\\]|\\.)*?)\\?"/g)].map((m) => m[1]);
+    const text = (msgs.length ? msgs[msgs.length - 1] : l).replace(/\\+"/g, '"').trim();
+    if (text) return text.slice(0, 240);
+  }
+  return null;
+}
+
 const CATEGORY_LABEL = {
   passed: 'Passed',
   timeout: 'Timed out',
@@ -120,7 +142,7 @@ async function runAttempt({ agent, scenario, rep, workRoot, outDir, timeoutSec, 
       timeoutMs,
       logFile,
       onLine,
-      env: { ...process.env, FORCE_COLOR: '0', NO_COLOR: '1' },
+      env: agentEnv(),
     });
     if (agentResult.error) fs.appendFileSync(logFile, `\n[faultline] failed to start: ${agentResult.error.message || agentResult.error}\n`);
     if (agentResult.timedOut) fs.appendFileSync(logFile, `\n[faultline] killed after ${timeoutMs / 1000}s timeout\n`);
@@ -148,6 +170,7 @@ async function runAttempt({ agent, scenario, rep, workRoot, outDir, timeoutSec, 
     durationMs: agentResult.durationMs,
     exitCode: agentResult.code,
     timedOut: agentResult.timedOut,
+    errorHint: ['agent_error', 'no_changes', 'timeout'].includes(category) ? errorHint(agentResult.stdout, agentResult.stderr) : null,
     tests: { total: tests.total, passed: tests.passed, failed: tests.failed, failures: tests.failures },
     usage: {
       inputTokens: usage.inputTokens ?? null,
@@ -212,4 +235,4 @@ async function runBenchmark({ agents, scenarios, repeat, timeoutSec, models, out
   return { results, hasGit };
 }
 
-module.exports = { runBenchmark, runAttempt, parseTap, classify, CATEGORY_LABEL };
+module.exports = { runBenchmark, runAttempt, parseTap, classify, errorHint, CATEGORY_LABEL };
