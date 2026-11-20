@@ -249,7 +249,7 @@ a{color:var(--accent)}
 <tr><th>#</th><th>Agent</th><th>Solved</th><th>Hidden tests passed</th><th>Median time</th><th>Tokens</th><th>Cost</th>${config.repeat > 1 ? '<th>Consistent</th><th>Solved every run</th>' : ''}<th>Failure reasons</th></tr>
 ${leaderboard}
 </table></div>
-<p class="muted">Solved = every hidden test passes. Hidden tests are copied in only after the agent finishes, so agents cannot see or edit them. Tokens and cost appear only when the agent CLI reports them; subscription plans often report tokens but no price.${config.repeat > 1 ? ' Consistent = share of scenarios where all repeated runs gave the same result.' : ' Run with --repeat 3 to measure reliability.'}</p>
+<p class="muted">Solved = every hidden test passes. Hidden tests are never in the agent's workspace; they are added to a separate copy after the agent finishes. They ship sealed, not secret: an agent with shell access could still find them, and attempts whose output mentions them are flagged. Tokens and cost appear only when the agent CLI reports them; subscription plans often report tokens but no price.${config.repeat > 1 ? ' Consistent = share of scenarios where all repeated runs gave the same result.' : ' Run with --repeat 3 to measure reliability.'}</p>
 
 <h2>Scenario matrix</h2>
 <div class="scroll"><table><tr><th>Scenario</th>${matrixHead}</tr>
