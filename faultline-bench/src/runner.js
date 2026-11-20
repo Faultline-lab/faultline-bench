@@ -242,14 +242,18 @@ async function runBenchmark({ agents, scenarios, repeat, timeoutSec, models, out
   const limit = Math.max(1, parallel || agents.length);
   const pending = [...queues];
   const running = new Set();
-  while (pending.length || running.size) {
-    while (pending.length && running.size < limit) {
-      const p = worker(pending.shift()).finally(() => running.delete(p));
-      running.add(p);
+  try {
+    while (pending.length || running.size) {
+      while (pending.length && running.size < limit) {
+        const p = worker(pending.shift()).finally(() => running.delete(p));
+        running.add(p);
+      }
+      if (running.size) await Promise.race(running);
     }
-    if (running.size) await Promise.race(running);
+  } finally {
+    await Promise.allSettled(running); // let other agents stop before deleting their folders
+    rmrf(workRoot);
   }
-  rmrf(workRoot);
   return { results, hasGit };
 }
 
