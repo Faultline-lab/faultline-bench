@@ -49,7 +49,7 @@ Faultline Bench evaluates each agent through automated, isolated test runs:
 - **Hidden tests**: The runner copies verification tests into the workspace only after the agent process stops. Agents cannot inspect hidden tests while working on the task.
 - **Solved status**: An attempt counts as Solved only when all hidden tests pass.
 - **Test pass rate**: The report records the percentage of passing hidden tests across all attempts for each scenario.
-- **Median time**: The runner records duration in milliseconds for each attempt and reports median completion time for successful runs.
+- **Median time**: The runner records duration in milliseconds for each attempt and reports the median across all attempts.
 - **Tokens and cost**: The benchmark extracts token usage and dollar costs only when the agent CLI reports them in its output. If an agent does not output usage metrics, cost remains omitted.
 - **Consistency**: You can pass `--repeat <n>` to run each scenario multiple times and measure consistency across repeated trials.
 
@@ -71,7 +71,7 @@ Faultline Bench includes pre-configured adapters for popular coding agent CLIs. 
 |---|---|---|---|---|
 | Claude Code | `claude` | `claude` | `-p <prompt> --output-format json --dangerously-skip-permissions` | Supported |
 | Codex CLI | `codex` | `codex` | `exec --json --skip-git-repo-check --sandbox workspace-write <prompt>` | Supported |
-| Gemini CLI | `gemini` | `gemini` | `-p <prompt> --yolo --output-format json` | Supported |
+| Gemini CLI | `gemini` | `gemini` | `-p <prompt> --yolo --output-format json` | Supported (flags not yet verified on a live install) |
 | OpenCode | `opencode` | `opencode` | `run --standalone --auto --format json <prompt>` | Supported |
 | Antigravity CLI | `agy` | `agy`, `antigravity` | `-p <prompt> --output-format json --add-dir <workspace> --print-timeout 30m --dangerously-skip-permissions` | Supported |
 | Qwen Code | `qwen` | `qwen` | `-p <prompt> --yolo` | Experimental |
@@ -112,6 +112,7 @@ You can pass these options to `faultline run`:
 | `--model <agent=model>` | Set a model for an agent, e.g. `--model claude=sonnet` (repeatable) |
 | `--agent-cmd <spec>` | Add any CLI: `"name=mycli --yes -p {prompt}"` (repeatable) |
 | `--parallel <n>` | Number of agents to run simultaneously (default: all selected) |
+| `--workdir <dir>` | Where temporary task copies go (default: system temp; also `FAULTLINE_WORKDIR`) |
 | `--out <dir>` | Directory where the report is written (default: `./faultline-results/<run>`) |
 | `-y, --yes` | Skip confirmation prompts |
 | `--no-open` | Do not open the HTML report when done |
@@ -129,7 +130,7 @@ Running autonomous coding agents requires sensible precautions:
 
 ## Adding your own scenario
 
-You can add custom scenarios to evaluate tasks specific to your codebase. Place each scenario in a directory under `scenarios/<scenario-id>/` with this folder layout:
+In v1, custom scenarios live in a clone of this repository. Place each scenario in a directory under `faultline-bench/scenarios/<scenario-id>/` and run `node bin/faultline.js` from that folder. Use this layout:
 
 ```text
 scenarios/my-scenario/

@@ -30,6 +30,7 @@ ${c.bold('Run options')}
   --model <agent=model>  Pick a model, e.g. --model claude=sonnet (repeatable)
   --agent-cmd <spec>     Add any CLI: "name=mycli --yes -p {prompt}" (repeatable)
   --parallel <n>         Agents to run at the same time (default: all selected)
+  --workdir <dir>        Where temporary task copies go (default: system temp, or FAULTLINE_WORKDIR)
   --out <dir>            Where to write the report (default ./faultline-results/<run>)
   -y, --yes              Skip confirmation prompts
   --no-open              Do not open the HTML report when done
