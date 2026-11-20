@@ -1,0 +1,10 @@
+{
+  "id": "pagination-off-by-one",
+  "order": 1,
+  "title": "Fix a buggy pagination helper",
+  "category": "bug fix",
+  "difficulty": "easy",
+  "suites": ["quick", "full"],
+  "timeoutSec": 420,
+  "task": "Users report that `paginate()` in `src/paginate.js` returns the wrong items and wrong page counts. Fix it.\n\nRequired behavior:\n\n- `page` is 1-based: page 1 is the first page.\n- `totalPages` is `Math.ceil(totalItems / perPage)`, so an empty list has 0 pages.\n- A page past the last page returns an empty `items` array (not an error).\n- `hasPrev` is true only when `page > 1`. `hasNext` is true only when `page < totalPages`.\n- `page` and `perPage` must be integers >= 1, otherwise throw a `RangeError`.\n- Do not mutate the input array.\n\nKeep the function name, export and return shape the same. Run the tests with `npm test`."
+}

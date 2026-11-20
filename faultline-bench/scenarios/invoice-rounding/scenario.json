@@ -1,0 +1,10 @@
+{
+  "id": "invoice-rounding",
+  "order": 4,
+  "title": "Fix cent-rounding bugs across two modules",
+  "category": "multi-file bug fix",
+  "difficulty": "medium",
+  "suites": ["full"],
+  "timeoutSec": 480,
+  "task": "Customers report invoice totals that are off by a cent, and amounts printed like `$1.5`. The code is in `src/money.js` and `src/invoice.js`. Fix both so every amount is computed in integer cents.\n\n## money.js\n\n- `toCents(dollars)`: convert a dollar amount (at most 2 decimal places) to integer cents, rounding to the nearest cent. `toCents(0.29)` must be `29`.\n- `formatMoney(cents)`: format integer cents as US dollars with thousands separators and exactly two decimals: `123450` -> `\"$1,234.50\"`, `5` -> `\"$0.05\"`, `0` -> `\"$0.00\"`, `-305` -> `\"-$3.05\"`.\n\n## invoice.js: createInvoice(lines, { discountPercent = 0, taxRate = 0 })\n\n`lines` is an array of `{ description, unitPrice, quantity }` where `unitPrice` is in dollars. Return `{ subtotal, discount, tax, total, formatted }`, where the first four are integer cents and `formatted` holds the same four keys as `formatMoney` strings.\n\n1. Each line total is `toCents(unitPrice) * quantity`. `subtotal` is the sum of line totals.\n2. `discount` = `subtotal * discountPercent / 100`, rounded half up to a whole cent (52.5 -> 53).\n3. `tax` = `(subtotal - discount) * taxRate`, rounded half up to a whole cent (82.5 -> 83). `taxRate` is a fraction, e.g. `0.0825` for 8.25%.\n4. `total` = `subtotal - discount + tax`, exactly.\n5. Throw a `RangeError` if a quantity is not an integer >= 1, if `discountPercent` is outside 0..100, or if `taxRate` is negative.\n\nRun the tests with `npm test`."
+}

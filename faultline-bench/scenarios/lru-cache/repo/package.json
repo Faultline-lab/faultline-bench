@@ -1,0 +1,5 @@
+{
+  "name": "tiny-cache",
+  "private": true,
+  "scripts": { "test": "node --test" }
+}

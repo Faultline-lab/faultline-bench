@@ -1,0 +1,10 @@
+{
+  "id": "csv-parser",
+  "order": 5,
+  "title": "Make a failing CSV test suite pass",
+  "category": "make tests pass",
+  "difficulty": "medium",
+  "suites": ["full"],
+  "timeoutSec": 480,
+  "task": "`parseCSV` in `src/csv.js` splits on newlines and commas, so most of `test/csv.test.js` fails. Rewrite `parseCSV` so the whole suite passes. Do not edit the tests.\n\n`parseCSV(text, { delimiter = ',' } = {})` returns an array of rows, each an array of strings, following RFC 4180:\n\n- Fields may be wrapped in double quotes. Quoted fields can contain the delimiter, newlines, and escaped quotes written as `\"\"`.\n- Rows end with `\\n` or `\\r\\n`. A single trailing line break does not create an extra empty row.\n- Empty input (`''`) returns `[]`.\n- Empty fields are kept as `''` (`'a,,c'` -> `[['a', '', 'c']]`). Whitespace around fields is preserved, not trimmed.\n- The optional `delimiter` is a single character, e.g. `';'` or `'\\t'`.\n- An unterminated quoted field throws a `SyntaxError`.\n\nRun the tests with `npm test`."
+}

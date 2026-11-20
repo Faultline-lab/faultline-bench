@@ -1,0 +1,5 @@
+{
+  "name": "mini-emitter",
+  "private": true,
+  "scripts": { "test": "node --test" }
+}

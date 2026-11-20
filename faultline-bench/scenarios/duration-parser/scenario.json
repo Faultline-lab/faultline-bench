@@ -1,0 +1,10 @@
+{
+  "id": "duration-parser",
+  "order": 2,
+  "title": "Implement a duration parser and formatter",
+  "category": "implement from spec",
+  "difficulty": "easy",
+  "suites": ["quick", "full"],
+  "timeoutSec": 420,
+  "task": "Implement `parseDuration` and `formatDuration` in `src/duration.js`. Both currently throw \"not implemented\".\n\n## parseDuration(input) -> number of milliseconds\n\n- Units: `ms`, `s`, `m`, `h`, `d` (1d = 24h). Units are case-insensitive.\n- Parts can be combined, with or without spaces: `\"1h30m\"`, `\"1h 30m\"`, `\"2d 4h\"`.\n- Each part is a non-negative number, decimals allowed: `\"1.5h\"` = 5400000.\n- Each unit may appear at most once, in any order.\n- Leading and trailing whitespace is ignored.\n- A plain number string with no unit means milliseconds: `\"500\"` = 500.\n- The result is rounded to the nearest integer millisecond.\n- Throw a `TypeError` if `input` is not a string.\n- Throw a `RangeError` for anything else invalid: empty or blank strings, unknown units, negative numbers, repeated units, or leftover characters (e.g. `\"1h foo\"`, `\"h\"`, `\"1hh\"`).\n\n## formatDuration(ms) -> string\n\n- Largest units first, separated by single spaces, zero parts omitted: `5400000` -> `\"1h 30m\"`, `90061001` -> `\"1d 1h 1m 1s 1ms\"`.\n- `0` -> `\"0ms\"`.\n- Non-integer input is rounded to the nearest millisecond first.\n- Throw a `RangeError` for negative, `NaN` or infinite input, and a `TypeError` for non-numbers.\n\nRun the tests with `npm test`."
+}

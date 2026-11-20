@@ -1,0 +1,5 @@
+{
+  "name": "csv-lite",
+  "private": true,
+  "scripts": { "test": "node --test" }
+}

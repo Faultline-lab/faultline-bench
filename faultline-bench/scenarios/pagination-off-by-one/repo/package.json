@@ -1,0 +1,5 @@
+{
+  "name": "pagination-helper",
+  "private": true,
+  "scripts": { "test": "node --test" }
+}

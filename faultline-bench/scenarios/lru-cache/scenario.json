@@ -1,0 +1,10 @@
+{
+  "id": "lru-cache",
+  "order": 3,
+  "title": "Add LRU eviction to an existing cache",
+  "category": "feature on existing code",
+  "difficulty": "medium",
+  "suites": ["quick", "full"],
+  "timeoutSec": 480,
+  "task": "`src/cache.js` contains a `Cache` class that grows forever. Add least-recently-used (LRU) eviction without breaking existing callers.\n\nRequirements:\n\n- The constructor accepts an optional options object: `new Cache({ maxSize, onEvict })`.\n  - `maxSize` defaults to `Infinity`. It must be `Infinity` or an integer >= 1; otherwise throw a `RangeError`.\n  - `onEvict(key, value)` is optional. Call it once for every entry removed because the cache was full. Do NOT call it for `delete()`, `clear()`, or when `set()` overwrites an existing key.\n- `new Cache()` with no arguments must keep working exactly as before.\n- When `set()` would make `size` exceed `maxSize`, evict the least recently used entry.\n- `get(key)` of an existing key and `set(key, value)` (new or existing key) mark that key as most recently used. `has(key)` does NOT change recency.\n- Add `delete(key)` (returns `true` if the key existed, else `false`) and `clear()`.\n- Add `keys()` returning an array of keys ordered from least to most recently used.\n- `set()` keeps returning `this` so calls can be chained. `size` stays a getter.\n\nRun the tests with `npm test`."
+}

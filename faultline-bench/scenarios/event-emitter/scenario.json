@@ -1,0 +1,10 @@
+{
+  "id": "event-emitter",
+  "order": 6,
+  "title": "Extend an event emitter without breaking it",
+  "category": "feature + edge cases",
+  "difficulty": "hard",
+  "suites": ["full"],
+  "timeoutSec": 540,
+  "task": "`src/emitter.js` has a minimal `Emitter` with `on` and `emit`. Extend it. Existing behavior of `on` and `emit` must keep working.\n\nAdd:\n\n- `off(event, listener)`: remove one registration of `listener` (the earliest one) for `event`. Removing a listener that is not registered does nothing. Returns `this`.\n- `once(event, listener)`: register a listener that runs at most once and is then removed. `off(event, listener)` with the ORIGINAL function must also remove a pending `once` listener. Returns `this`.\n- `listenerCount(event)`: number of listeners currently registered for `event`.\n\nFix and define `emit(event, ...args)`:\n\n- Returns `true` if the event had listeners when `emit` was called, otherwise `false`.\n- Listeners run in registration order with `this` set to the emitter.\n- `emit` works on a snapshot taken when it starts: listeners added during an emit are NOT called in that emit, and listeners removed during an emit that have not run yet ARE still called in that emit.\n- If a listener throws, the remaining listeners still run, and after all of them have run `emit` rethrows the FIRST error.\n- Emitting `'error'` with no listeners throws the first argument if it is an `Error`, otherwise throws a new `Error`.\n\n`on` must keep returning `this`. Run the tests with `npm test`."
+}
