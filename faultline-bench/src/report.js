@@ -187,6 +187,7 @@ function buildHtml(report, outDir) {
 <span class="muted">· tests ${a.tests.passed}/${a.tests.total} · ${fmtDuration(a.durationMs)} · ${a.changes.files.length} files (+${a.changes.insertions} −${a.changes.deletions})${a.usage.costUsd != null ? ' · ' + fmtCost(a.usage.costUsd) : ''}</span></summary>
 <div class="body">
 ${a.touchedTests.length ? `<p class="warn">Note: the agent edited test files (${esc(a.touchedTests.join(', '))}). Grading uses separate hidden tests, so this does not affect the score.</p>` : ''}
+${a.suspicious ? `<p class="warn">⚠ The agent's output mentions Faultline's own grading files (sealed.gz or hidden tests). Treat this result with suspicion.</p>` : ''}
 ${a.errorHint ? `<p class="warn">Agent error: ${esc(a.errorHint)}</p>` : ''}
 ${a.tests.failures.length ? `<h4>Failing hidden tests</h4><ul>${a.tests.failures.map((f) => `<li>${esc(f)}</li>`).join('')}</ul>` : ''}
 <h4>Code changes</h4>${diffHtml(diff)}

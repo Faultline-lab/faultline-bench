@@ -46,7 +46,7 @@ Faultline Bench includes six built-in coding scenarios:
 
 Faultline Bench evaluates each agent through automated, isolated test runs:
 
-- **Hidden tests**: The runner copies verification tests into the workspace only after the agent process stops. Agents cannot inspect hidden tests while working on the task.
+- **Hidden tests**: Grading tests are never in the agent's workspace. After the agent stops, Faultline copies the result to a separate temporary folder, adds the hidden tests there, and runs them. In the published package the hidden tests ship packed in `sealed.gz`, not as plain files. This is sealed, not secret: grading happens on your machine, so a determined agent with shell access could still find and unpack them. If an agent's output mentions those files, the attempt is flagged "touched grading files" in the console and report.
 - **Solved status**: An attempt counts as Solved only when all hidden tests pass.
 - **Test pass rate**: The report records the percentage of passing hidden tests across all attempts for each scenario.
 - **Median time**: The runner records duration in milliseconds for each attempt and reports the median across all attempts.

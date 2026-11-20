@@ -19,6 +19,13 @@ function agentEnv() {
   return env;
 }
 
+// The grader must print plain TAP even when Faultline itself runs under a test runner.
+function graderEnv() {
+  const env = { ...process.env, NODE_OPTIONS: '' };
+  delete env.NODE_TEST_CONTEXT;
+  return env;
+}
+
 function git(cwd, args) {
   return runSync('git', [...GIT_ID, ...args], { cwd, maxBuffer: 32 * 1024 * 1024 });
 }
@@ -67,22 +74,25 @@ function parseTap(out) {
 }
 
 /**
- * Grades in a fresh copy of the agent's result (without .git), in a folder the agent never saw,
- * so a process the agent left running cannot touch the hidden tests.
+ * Grades in a fresh copy of the agent's result (without .git) inside a separate random temp folder,
+ * away from the workspace, which makes it harder for a process the agent left running to find the
+ * hidden tests. Local grading can never be fully secret; see suspiciousAccess() for detection.
  */
 async function grade(scenario, workspace) {
-  const gradeDir = `${workspace}-grade-${crypto.randomBytes(4).toString('hex')}`;
+  const gradeRoot = fs.mkdtempSync(path.join(path.dirname(path.dirname(workspace)), 'fg-'));
+  const gradeDir = path.join(gradeRoot, 'w');
   fs.cpSync(workspace, gradeDir, { recursive: true, filter: (src) => path.basename(src) !== '.git' });
+  rmrf(path.join(gradeDir, HIDDEN_DIR)); // never trust anything the agent put at this name
   const written = writePart(readPart(scenario, 'hidden'), path.join(gradeDir, HIDDEN_DIR));
   const files = written.filter((f) => /\.test\.(c?js|mjs)$/.test(f)).map((f) => path.join(HIDDEN_DIR, f));
   const r = await run(process.execPath, ['--test', '--test-reporter=tap', ...files], {
     cwd: gradeDir,
     timeoutMs: 120000,
     raw: true,
-    env: { ...process.env, NODE_OPTIONS: '' },
+    env: graderEnv(),
   });
   const tap = parseTap(r.stdout);
-  rmrf(gradeDir);
+  rmrf(gradeRoot);
   return { ...tap, timedOut: r.timedOut, output: (r.stdout + r.stderr).slice(-20000) };
 }
 
@@ -106,6 +116,11 @@ function errorHint(stdout, stderr) {
     if (text) return text.slice(0, 240);
   }
   return null;
+}
+
+// Flags attempts whose output shows the agent touching Faultline's own grading files.
+function suspiciousAccess(text) {
+  return /sealed\.gz|\.faultline-hidden|faultline-bench[\\/]+scenarios/i.test(text || '');
 }
 
 const CATEGORY_LABEL = {
@@ -171,6 +186,7 @@ async function runAttempt({ agent, scenario, rep, workRoot, outDir, timeoutSec, 
     durationMs: agentResult.durationMs,
     exitCode: agentResult.code,
     timedOut: agentResult.timedOut,
+    suspicious: suspiciousAccess(`${agentResult.stdout}\n${agentResult.stderr}`),
     errorHint: ['agent_error', 'no_changes', 'timeout'].includes(category) ? errorHint(agentResult.stdout, agentResult.stderr) : null,
     tests: { total: tests.total, passed: tests.passed, failed: tests.failed, failures: tests.failures },
     usage: {
@@ -194,8 +210,9 @@ async function runAttempt({ agent, scenario, rep, workRoot, outDir, timeoutSec, 
  */
 async function runBenchmark({ agents, scenarios, repeat, timeoutSec, models, outDir, workRoot, parallel, onProgress }) {
   const hasGit = !!which('git');
-  workRoot = workRoot || fs.mkdtempSync(path.join(os.tmpdir(), 'faultline-'));
-  fs.mkdirSync(workRoot, { recursive: true });
+  const base = workRoot || os.tmpdir();
+  fs.mkdirSync(base, { recursive: true });
+  workRoot = fs.mkdtempSync(path.join(base, 'faultline-'));
   const results = [];
   const queues = agents.map((agent) => {
     const jobs = [];
@@ -236,4 +253,4 @@ async function runBenchmark({ agents, scenarios, repeat, timeoutSec, models, out
   return { results, hasGit };
 }
 
-module.exports = { runBenchmark, runAttempt, parseTap, classify, errorHint, CATEGORY_LABEL };
+module.exports = { runBenchmark, runAttempt, parseTap, classify, errorHint, suspiciousAccess, CATEGORY_LABEL };
