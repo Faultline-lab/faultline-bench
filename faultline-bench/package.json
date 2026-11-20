@@ -10,7 +10,9 @@
   "files": [
     "bin",
     "src",
-    "scenarios",
+    "scenarios/*/scenario.json",
+    "scenarios/*/repo/**",
+    "scenarios/*/sealed.gz",
     "README.md",
     "LICENSE",
     "NOTICE.md"
@@ -19,7 +21,8 @@
     "node": ">=18.19"
   },
   "scripts": {
-    "test": "node --test test/"
+    "test": "node --test test/",
+    "prepack": "node scripts/seal.js"
   },
   "keywords": [
     "ai",

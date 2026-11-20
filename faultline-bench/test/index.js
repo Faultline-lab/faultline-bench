@@ -7,3 +7,4 @@ require('./custom-agent.test.js');
 require('./cli-args.test.js');
 require('./scenarios.test.js');
 require('./integration.test.js');
+require('./package.test.js');

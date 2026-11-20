@@ -332,8 +332,8 @@ function findBuiltin(id) {
 function runBuiltin(agent, scenario, workspace) {
   const started = Date.now();
   if (agent.id === 'oracle') {
-    const sol = path.join(scenario.dir, 'solution');
-    if (fs.existsSync(sol)) fs.cpSync(sol, workspace, { recursive: true });
+    const { readPart, writePart } = require('./scenarios');
+    writePart(readPart(scenario, 'solution'), workspace);
   }
   return { code: 0, stdout: '', stderr: '', timedOut: false, durationMs: Date.now() - started };
 }

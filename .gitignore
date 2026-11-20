@@ -5,3 +5,4 @@ node_modules/
 .aes/
 *.tgz
 faultline-bench/test/.tmp/
+faultline-bench/scenarios/*/sealed.gz

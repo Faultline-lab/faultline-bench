@@ -3,6 +3,8 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const crypto = require('node:crypto');
+const { readPart, writePart } = require('./scenarios');
 const { run, runSync, which, rmrf } = require('./util');
 const { PROMPT, runBuiltin } = require('./agents');
 
@@ -64,24 +66,23 @@ function parseTap(out) {
   return { total: total || 0, passed: passed || 0, failed: failed || 0, failures: failures.slice(0, 20), ran: total !== null };
 }
 
-/** Copies hidden tests into the workspace and runs them with node --test. */
+/**
+ * Grades in a fresh copy of the agent's result (without .git), in a folder the agent never saw,
+ * so a process the agent left running cannot touch the hidden tests.
+ */
 async function grade(scenario, workspace) {
-  const hiddenSrc = path.join(scenario.dir, 'hidden');
-  const hiddenDst = path.join(workspace, HIDDEN_DIR);
-  rmrf(hiddenDst);
-  fs.cpSync(hiddenSrc, hiddenDst, { recursive: true });
-  const files = fs
-    .readdirSync(hiddenDst)
-    .filter((f) => /\.test\.(c?js|mjs)$/.test(f))
-    .map((f) => path.join(HIDDEN_DIR, f));
+  const gradeDir = `${workspace}-grade-${crypto.randomBytes(4).toString('hex')}`;
+  fs.cpSync(workspace, gradeDir, { recursive: true, filter: (src) => path.basename(src) !== '.git' });
+  const written = writePart(readPart(scenario, 'hidden'), path.join(gradeDir, HIDDEN_DIR));
+  const files = written.filter((f) => /\.test\.(c?js|mjs)$/.test(f)).map((f) => path.join(HIDDEN_DIR, f));
   const r = await run(process.execPath, ['--test', '--test-reporter=tap', ...files], {
-    cwd: workspace,
+    cwd: gradeDir,
     timeoutMs: 120000,
     raw: true,
     env: { ...process.env, NODE_OPTIONS: '' },
   });
   const tap = parseTap(r.stdout);
-  rmrf(hiddenDst);
+  rmrf(gradeDir);
   return { ...tap, timedOut: r.timedOut, output: (r.stdout + r.stderr).slice(-20000) };
 }
 

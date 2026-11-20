@@ -128,7 +128,7 @@ async function chooseAgents(detected, opts) {
       if (!installed.length) throw new Error('No agent CLIs found. Run "faultline detect".');
       return installed;
     }
-    return ids.map((id) => {
+    return [...new Set(ids)].map((id) => {
       const builtin = findBuiltin(id);
       if (builtin) return { ...builtin, version: 'built-in' };
       const a = detected.find((x) => x.id === id);
@@ -215,7 +215,7 @@ async function cmdRun(opts) {
   }
 
   await versionReady; // usually finished while the user was answering prompts
-  const runId = timestampId();
+  const runId = `${timestampId()}_${require('node:crypto').randomBytes(2).toString('hex')}`;
   const outDir = path.resolve(opts.out || path.join(process.cwd(), 'faultline-results', runId));
   fs.mkdirSync(outDir, { recursive: true });
   const startedAt = new Date().toISOString();

@@ -205,7 +205,7 @@ ${a.tests.failures.length ? `<h4>Failing hidden tests</h4><ul>${a.tests.failures
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
 main{max-width:1180px;margin:0 auto;padding:32px 20px 64px}
 header{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:20px}
-.brand{font-weight:800;letter-spacing:.02em;font-size:22px}.brand span{color:var(--accent)}
+.brand{margin:0;font-weight:800;letter-spacing:.02em;font-size:22px}.brand span{color:var(--accent)}
 .muted{color:var(--muted);font-size:13px}
 .hero{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:24px 0}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}
@@ -232,7 +232,7 @@ footer{margin-top:48px;color:var(--muted);font-size:13px;border-top:1px solid va
 a{color:var(--accent)}
 </style></head><body><main>
 <header>
-  <div><div class="brand">FAULTLINE <span>BENCH</span></div><div class="muted">Find the best AI coding agent for your codebase</div></div>
+  <div><h1 class="brand">FAULTLINE <span>BENCH</span></h1><div class="muted">Find the best AI coding agent for your codebase</div></div>
   <div class="muted">Run ${esc(report.runId)} · ${esc(new Date(report.startedAt).toLocaleString())}<br>${esc(environment.os)} · Node ${esc(environment.node)}</div>
 </header>
 
