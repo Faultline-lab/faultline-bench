@@ -30,6 +30,7 @@ ${c.bold('Run options')}
   --model <agent=model>  Pick a model, e.g. --model claude=sonnet (repeatable)
   --agent-cmd <spec>     Add any CLI: "name=mycli --yes -p {prompt}" (repeatable)
   --parallel <n>         Agents to run at the same time (default: all selected)
+  --workdir <dir>        Where temporary task copies go (default: system temp, or FAULTLINE_WORKDIR)
   --out <dir>            Where to write the report (default ./faultline-results/<run>)
   -y, --yes              Skip confirmation prompts
   --no-open              Do not open the HTML report when done
@@ -127,7 +128,7 @@ async function chooseAgents(detected, opts) {
       if (!installed.length) throw new Error('No agent CLIs found. Run "faultline detect".');
       return installed;
     }
-    return ids.map((id) => {
+    return [...new Set(ids)].map((id) => {
       const builtin = findBuiltin(id);
       if (builtin) return { ...builtin, version: 'built-in' };
       const a = detected.find((x) => x.id === id);
@@ -214,7 +215,7 @@ async function cmdRun(opts) {
   }
 
   await versionReady; // usually finished while the user was answering prompts
-  const runId = timestampId();
+  const runId = `${timestampId()}_${require('node:crypto').randomBytes(4).toString('hex')}`;
   const outDir = path.resolve(opts.out || path.join(process.cwd(), 'faultline-results', runId));
   fs.mkdirSync(outDir, { recursive: true });
   const startedAt = new Date().toISOString();
@@ -237,7 +238,7 @@ async function cmdRun(opts) {
     timeoutSec,
     models,
     outDir,
-    workRoot: opts.workdir || process.env.FAULTLINE_WORKDIR ? path.resolve(opts.workdir || process.env.FAULTLINE_WORKDIR, `faultline-${runId}`) : undefined,
+    workRoot: opts.workdir || process.env.FAULTLINE_WORKDIR ? path.resolve(opts.workdir || process.env.FAULTLINE_WORKDIR) : undefined,
     parallel,
     onProgress: (ev) => {
       const key = `${ev.agent.name} · ${ev.scenario.id}${repeat > 1 ? ` #${ev.rep}` : ''}`;
@@ -248,7 +249,8 @@ async function cmdRun(opts) {
       inFlight.delete(key);
       const r = ev.result;
       const mark = r.passed ? c.green('✓') : c.red('✗');
-      const why = r.passed ? '' : c.dim(`  ${CATEGORY_LABEL[r.category]}`);
+      const flag = r.suspicious ? c.yellow('  ⚠ touched grading files') : '';
+      const why = r.passed ? flag : flag + c.dim(`  ${CATEGORY_LABEL[r.category]}${r.errorHint ? `: ${r.errorHint.slice(0, 90)}` : ''}`);
       const cost = r.usage.costUsd != null ? c.dim(`  ${fmtCost(r.usage.costUsd)}`) : '';
       console.log(
         `  ${mark} ${nameOf(r.agent).padEnd(nameWidth)}  ${(r.scenario + (repeat > 1 ? ` #${r.rep}` : '')).padEnd(26)} ${String(`${r.tests.passed}/${r.tests.total}`).padStart(5)} tests  ${fmtDuration(r.durationMs).padStart(6)}${cost}${why}  ${c.dim(`[${ev.finished}/${ev.total}]`)}`

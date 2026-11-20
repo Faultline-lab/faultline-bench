@@ -3,11 +3,28 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const crypto = require('node:crypto');
+const { readPart, writePart } = require('./scenarios');
 const { run, runSync, which, rmrf } = require('./util');
 const { PROMPT, runBuiltin } = require('./agents');
 
 const GIT_ID = ['-c', 'user.email=bench@faultline.local', '-c', 'user.name=Faultline Bench', '-c', 'commit.gpgsign=false', '-c', 'core.autocrlf=false'];
 const HIDDEN_DIR = '.faultline-hidden';
+
+// Same environment the user has, minus variables that make a CLI think it is
+// nested inside another agent session (e.g. running Faultline from Claude Code).
+function agentEnv() {
+  const env = { ...process.env, FORCE_COLOR: '0', NO_COLOR: '1' };
+  for (const k of Object.keys(env)) if (/^(CLAUDECODE|CLAUDE_CODE_ENTRYPOINT|CODEX_SANDBOX.*|CODEX_THREAD_ID)$/i.test(k)) delete env[k];
+  return env;
+}
+
+// The grader must print plain TAP even when Faultline itself runs under a test runner.
+function graderEnv() {
+  const env = { ...process.env, NODE_OPTIONS: '' };
+  delete env.NODE_TEST_CONTEXT;
+  return env;
+}
 
 function git(cwd, args) {
   return runSync('git', [...GIT_ID, ...args], { cwd, maxBuffer: 32 * 1024 * 1024 });
@@ -56,24 +73,26 @@ function parseTap(out) {
   return { total: total || 0, passed: passed || 0, failed: failed || 0, failures: failures.slice(0, 20), ran: total !== null };
 }
 
-/** Copies hidden tests into the workspace and runs them with node --test. */
+/**
+ * Grades in a fresh copy of the agent's result (without .git) inside a separate random temp folder,
+ * away from the workspace, which makes it harder for a process the agent left running to find the
+ * hidden tests. Local grading can never be fully secret; see suspiciousAccess() for detection.
+ */
 async function grade(scenario, workspace) {
-  const hiddenSrc = path.join(scenario.dir, 'hidden');
-  const hiddenDst = path.join(workspace, HIDDEN_DIR);
-  rmrf(hiddenDst);
-  fs.cpSync(hiddenSrc, hiddenDst, { recursive: true });
-  const files = fs
-    .readdirSync(hiddenDst)
-    .filter((f) => /\.test\.(c?js|mjs)$/.test(f))
-    .map((f) => path.join(HIDDEN_DIR, f));
+  const gradeRoot = fs.mkdtempSync(path.join(path.dirname(path.dirname(workspace)), 'fg-'));
+  const gradeDir = path.join(gradeRoot, 'w');
+  fs.cpSync(workspace, gradeDir, { recursive: true, filter: (src) => path.basename(src) !== '.git' });
+  rmrf(path.join(gradeDir, HIDDEN_DIR)); // never trust anything the agent put at this name
+  const written = writePart(readPart(scenario, 'hidden'), path.join(gradeDir, HIDDEN_DIR));
+  const files = written.filter((f) => /\.test\.(c?js|mjs)$/.test(f)).map((f) => path.join(HIDDEN_DIR, f));
   const r = await run(process.execPath, ['--test', '--test-reporter=tap', ...files], {
-    cwd: workspace,
+    cwd: gradeDir,
     timeoutMs: 120000,
     raw: true,
-    env: { ...process.env, NODE_OPTIONS: '' },
+    env: graderEnv(),
   });
   const tap = parseTap(r.stdout);
-  rmrf(hiddenDst);
+  rmrf(gradeRoot);
   return { ...tap, timedOut: r.timedOut, output: (r.stdout + r.stderr).slice(-20000) };
 }
 
@@ -83,6 +102,25 @@ function classify({ agentResult, tests, changes }) {
   if (changes.files.length === 0) return agentResult.code !== 0 ? 'agent_error' : 'no_changes';
   if (!tests.ran || tests.timedOut) return 'broken_code';
   return 'tests_failed';
+}
+
+// Pulls the most useful error line out of an agent's output, so the user sees
+// "model not supported" instead of just "crashed".
+function errorHint(stdout, stderr) {
+  const lines = `${stdout || ''}\n${stderr || ''}`.split(/\r?\n/).filter((l) => l.trim());
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const l = lines[i];
+    if (!/error|failed|denied|not found|unauthori[sz]ed|quota|limit/i.test(l)) continue;
+    const msgs = [...l.matchAll(/\\?"message\\?"\s*:\s*\\?"((?:[^"\\]|\\.)*?)\\?"/g)].map((m) => m[1]);
+    const text = (msgs.length ? msgs[msgs.length - 1] : l).replace(/\\+"/g, '"').trim();
+    if (text) return text.slice(0, 240);
+  }
+  return null;
+}
+
+// Flags attempts whose output shows the agent touching Faultline's own grading files.
+function suspiciousAccess(text) {
+  return /sealed\.gz|\.faultline-hidden|faultline-bench[\\/]+scenarios/i.test(text || '');
 }
 
 const CATEGORY_LABEL = {
@@ -120,7 +158,7 @@ async function runAttempt({ agent, scenario, rep, workRoot, outDir, timeoutSec, 
       timeoutMs,
       logFile,
       onLine,
-      env: { ...process.env, FORCE_COLOR: '0', NO_COLOR: '1' },
+      env: agentEnv(),
     });
     if (agentResult.error) fs.appendFileSync(logFile, `\n[faultline] failed to start: ${agentResult.error.message || agentResult.error}\n`);
     if (agentResult.timedOut) fs.appendFileSync(logFile, `\n[faultline] killed after ${timeoutMs / 1000}s timeout\n`);
@@ -148,6 +186,8 @@ async function runAttempt({ agent, scenario, rep, workRoot, outDir, timeoutSec, 
     durationMs: agentResult.durationMs,
     exitCode: agentResult.code,
     timedOut: agentResult.timedOut,
+    suspicious: suspiciousAccess(`${agentResult.stdout}\n${agentResult.stderr}`),
+    errorHint: ['agent_error', 'no_changes', 'timeout'].includes(category) ? errorHint(agentResult.stdout, agentResult.stderr) : null,
     tests: { total: tests.total, passed: tests.passed, failed: tests.failed, failures: tests.failures },
     usage: {
       inputTokens: usage.inputTokens ?? null,
@@ -170,8 +210,9 @@ async function runAttempt({ agent, scenario, rep, workRoot, outDir, timeoutSec, 
  */
 async function runBenchmark({ agents, scenarios, repeat, timeoutSec, models, outDir, workRoot, parallel, onProgress }) {
   const hasGit = !!which('git');
-  workRoot = workRoot || fs.mkdtempSync(path.join(os.tmpdir(), 'faultline-'));
-  fs.mkdirSync(workRoot, { recursive: true });
+  const base = workRoot || os.tmpdir();
+  fs.mkdirSync(base, { recursive: true });
+  workRoot = fs.mkdtempSync(path.join(base, 'faultline-'));
   const results = [];
   const queues = agents.map((agent) => {
     const jobs = [];
@@ -201,15 +242,19 @@ async function runBenchmark({ agents, scenarios, repeat, timeoutSec, models, out
   const limit = Math.max(1, parallel || agents.length);
   const pending = [...queues];
   const running = new Set();
-  while (pending.length || running.size) {
-    while (pending.length && running.size < limit) {
-      const p = worker(pending.shift()).finally(() => running.delete(p));
-      running.add(p);
+  try {
+    while (pending.length || running.size) {
+      while (pending.length && running.size < limit) {
+        const p = worker(pending.shift()).finally(() => running.delete(p));
+        running.add(p);
+      }
+      if (running.size) await Promise.race(running);
     }
-    if (running.size) await Promise.race(running);
+  } finally {
+    await Promise.allSettled(running); // let other agents stop before deleting their folders
+    rmrf(workRoot);
   }
-  rmrf(workRoot);
   return { results, hasGit };
 }
 
-module.exports = { runBenchmark, runAttempt, parseTap, classify, CATEGORY_LABEL };
+module.exports = { runBenchmark, runAttempt, parseTap, classify, errorHint, suspiciousAccess, CATEGORY_LABEL };
