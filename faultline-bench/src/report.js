@@ -169,8 +169,9 @@ function buildHtml(report, outDir) {
           const cls = k === reps.length ? 'ok' : k === 0 ? 'bad' : 'mixed';
           const tests = reps.map((a) => `${a.tests.passed}/${a.tests.total}`).join(', ');
           // Link to the first run of this pair; each attempt has its own id (…-r<rep>).
-          const first = reps.length ? reps[0].rep : null;
-          return `<td class="cell ${cls}"><a href="#${esc(r.agent)}-${esc(s.id)}${first == null ? '' : `-r${esc(first)}`}">${k === reps.length ? '✓' : k === 0 ? '✗' : '◐'} ${k}/${reps.length}</a><div class="muted">tests ${tests} · ${fmtDuration(median(reps.map((a) => a.durationMs)))}</div></td>`;
+          const label = `${k === reps.length ? '✓' : k === 0 ? '✗' : '◐'} ${k}/${reps.length}`;
+          const link = reps.length ? `<a href="#${esc(r.agent)}-${esc(s.id)}-r${esc(reps[0].rep)}">${label}</a>` : label;
+          return `<td class="cell ${cls}">${link}<div class="muted">tests ${tests} · ${fmtDuration(median(reps.map((a) => a.durationMs)))}</div></td>`;
         })
         .join('');
       return `<tr><td><strong>${esc(s.title)}</strong><div class="muted">${esc(s.category)} · ${esc(s.difficulty)}</div></td>${cells}</tr>`;

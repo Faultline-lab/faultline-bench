@@ -73,3 +73,13 @@ test('full log path is a file:// link', () => {
   const expected = pathToFileURL(path.join(outDir, attempts[0].files.log)).href;
   assert.ok(h.includes(`href="${expected}"`), `missing log link ${expected}`);
 });
+
+test('a pair with no attempts renders no dangling link', () => {
+  const h = buildHtml({
+    runId: 'empty', startedAt: 0, version: '0.0.0',
+    summary: summarize([], agents, scenarios, 1), attempts: [], scenarios,
+    config: { repeat: 1, suite: 'smoke' }, environment: { os: 'test-os', node: 'v0' },
+  }, outDir);
+  const have = new Set(ids(h));
+  for (const t of hashTargets(h)) assert.ok(have.has(t), `dangling link #${t}`);
+});
