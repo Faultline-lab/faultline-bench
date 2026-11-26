@@ -88,11 +88,12 @@ function resolveLaunch(exePath, args) {
   return { command: [`"${exePath}"`, ...quoted].join(' '), args: [], shell: true };
 }
 
-function killTree(child) {
+function killTree(child, sync = false) {
   if (!child || child.exitCode !== null) return;
   try {
-    // async: taskkill can take seconds and must not block other running agents
-    if (isWin) spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true });
+    // async by default: taskkill can take seconds and must not block other running agents.
+    // sync when exiting, so the tree is gone before we delete its working dir.
+    if (isWin) (sync ? spawnSync : spawn)('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true });
     else process.kill(-child.pid, 'SIGKILL');
   } catch {
     try {
@@ -101,6 +102,12 @@ function killTree(child) {
       /* already gone */
     }
   }
+}
+
+// Children started by run() that have not exited yet, so Ctrl+C can kill them.
+const live = new Set();
+function killAll() {
+  for (const child of live) killTree(child, true);
 }
 
 /**
@@ -126,6 +133,7 @@ function run(command, args, opts = {}) {
       resolve({ code: -1, stdout: '', stderr: String(error), timedOut: false, durationMs: 0, error });
       return;
     }
+    live.add(child);
     const log = logFile ? fs.createWriteStream(logFile, { flags: 'a' }) : null;
     let stdout = '';
     let stderr = '';
@@ -156,6 +164,7 @@ function run(command, args, opts = {}) {
     const finish = (code, error) => {
       if (done) return;
       done = true;
+      live.delete(child);
       if (timer) clearTimeout(timer);
       const result = { code, stdout, stderr, timedOut, durationMs: Date.now() - started, error };
       if (log) log.end(() => resolve(result));
@@ -232,6 +241,7 @@ module.exports = {
   run,
   runSync,
   killTree,
+  killAll,
   fmtDuration,
   fmtTokens,
   fmtCost,

@@ -50,7 +50,7 @@ const AGENTS = [
     name: 'Antigravity CLI',
     bin: ['agy', 'antigravity'],
     // agy ignores the process cwd unless the workspace is added explicitly.
-    args: (p, o) => ['-p', p, '--output-format', 'json', '--add-dir', o.workspace, '--print-timeout', '30m', '--dangerously-skip-permissions', ...(o.model ? ['--model', o.model] : [])],
+    args: (p, o) => ['-p', p, '--output-format', 'json', '--add-dir', o.workspace, '--print-timeout', `${o.timeoutSec}s`, '--dangerously-skip-permissions', ...(o.model ? ['--model', o.model] : [])],
     parseUsage: parseAgy,
   },
   {
