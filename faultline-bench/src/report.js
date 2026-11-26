@@ -2,6 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { pathToFileURL } = require('node:url');
 const { c, fmtDuration, fmtTokens, fmtCost } = require('./util');
 const { CATEGORY_LABEL } = require('./runner');
 
@@ -167,7 +168,10 @@ function buildHtml(report, outDir) {
           const k = reps.filter((a) => a.passed).length;
           const cls = k === reps.length ? 'ok' : k === 0 ? 'bad' : 'mixed';
           const tests = reps.map((a) => `${a.tests.passed}/${a.tests.total}`).join(', ');
-          return `<td class="cell ${cls}"><a href="#${esc(r.agent)}-${esc(s.id)}">${k === reps.length ? '✓' : k === 0 ? '✗' : '◐'} ${k}/${reps.length}</a><div class="muted">tests ${tests} · ${fmtDuration(median(reps.map((a) => a.durationMs)))}</div></td>`;
+          // Link to the first run of this pair; each attempt has its own id (…-r<rep>).
+          const label = `${k === reps.length ? '✓' : k === 0 ? '✗' : '◐'} ${k}/${reps.length}`;
+          const link = reps.length ? `<a href="#${esc(r.agent)}-${esc(s.id)}-r${esc(reps[0].rep)}">${label}</a>` : label;
+          return `<td class="cell ${cls}">${link}<div class="muted">tests ${tests} · ${fmtDuration(median(reps.map((a) => a.durationMs)))}</div></td>`;
         })
         .join('');
       return `<tr><td><strong>${esc(s.title)}</strong><div class="muted">${esc(s.category)} · ${esc(s.difficulty)}</div></td>${cells}</tr>`;
@@ -182,7 +186,7 @@ function buildHtml(report, outDir) {
       const s = scenarios.find((x) => x.id === a.scenario) || { title: a.scenario };
       const diff = readHead(path.join(outDir, a.files.diff), 60000);
       const log = readTail(path.join(outDir, a.files.log), 6000);
-      return `<details id="${esc(a.agent)}-${esc(a.scenario)}" class="attempt">
+      return `<details id="${esc(a.agent)}-${esc(a.scenario)}-r${esc(a.rep)}" class="attempt">
 <summary><span class="tag ${a.category}">${a.passed ? '✓ Passed' : esc(CATEGORY_LABEL[a.category])}</span> <strong>${esc(agentName)}</strong> · ${esc(s.title)} · run ${a.rep}
 <span class="muted">· tests ${a.tests.passed}/${a.tests.total} · ${fmtDuration(a.durationMs)} · ${a.changes.files.length} files (+${a.changes.insertions} −${a.changes.deletions})${a.usage.costUsd != null ? ' · ' + fmtCost(a.usage.costUsd) : ''}</span></summary>
 <div class="body">
@@ -190,7 +194,7 @@ ${a.touchedTests.length ? `<p class="warn">Note: the agent edited test files (${
 ${a.tests.failures.length ? `<h4>Failing hidden tests</h4><ul>${a.tests.failures.map((f) => `<li>${esc(f)}</li>`).join('')}</ul>` : ''}
 <h4>Code changes</h4>${diffHtml(diff)}
 <h4>Agent output (tail)</h4><pre class="log">${esc(log) || '<span class="muted">No output.</span>'}</pre>
-<p class="muted">Full log: ${esc(a.files.log)} · exit code ${a.exitCode}${a.timedOut ? ' · timed out' : ''}</p>
+<p class="muted">Full log: <a href="${esc(pathToFileURL(path.resolve(outDir, a.files.log)).href)}">${esc(a.files.log)}</a> · exit code ${a.exitCode}${a.timedOut ? ' · timed out' : ''}</p>
 </div></details>`;
     })
     .join('\n');
