@@ -3,6 +3,12 @@
   "version": "0.1.0",
   "description": "Find the best AI coding agent for your codebase. Free, open-source, local-first benchmark for Claude Code, Codex, Gemini CLI, OpenCode and more.",
   "license": "MIT",
+  "author": "Faultline Labs",
+  "homepage": "https://faultline-labs.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/samirsawarkar/faultline-bench.git"
+  },
   "bin": {
     "faultline": "bin/faultline.js",
     "faultline-bench": "bin/faultline.js"
