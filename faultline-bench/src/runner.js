@@ -177,16 +177,27 @@ async function runAttempt({ agent, scenario, rep, workRoot, outDir, timeoutSec, 
 async function runBenchmark({ agents, scenarios, repeat, timeoutSec, models, outDir, workRoot, parallel, onProgress }) {
   // Without git every attempt would silently look like "no changes".
   if (!which('git')) throw new Error('git is required to detect agent changes but was not found on PATH. Install git and try again.');
+  const ownWorkRoot = !workRoot;
   workRoot = workRoot || fs.mkdtempSync(path.join(os.tmpdir(), 'faultline-'));
   fs.mkdirSync(workRoot, { recursive: true });
-  // Ctrl+C: kill agent process trees, remove temp work dirs, exit 130.
+  // Ctrl+C: kill agent process trees, exit 130. Only delete a work dir we created; never a caller's --workdir.
   const onSignal = () => {
     killAll();
-    rmrf(workRoot);
+    if (ownWorkRoot) rmrf(workRoot);
     process.exit(130);
   };
   process.once('SIGINT', onSignal);
   process.once('SIGTERM', onSignal);
+  try {
+    return { results: await runQueues({ agents, scenarios, repeat, timeoutSec, models, outDir, workRoot, parallel, onProgress }) };
+  } finally {
+    process.off('SIGINT', onSignal);
+    process.off('SIGTERM', onSignal);
+    if (ownWorkRoot) rmrf(workRoot); // attempts already removed their own workspaces
+  }
+}
+
+async function runQueues({ agents, scenarios, repeat, timeoutSec, models, outDir, workRoot, parallel, onProgress }) {
   const results = [];
   const queues = agents.map((agent) => {
     const jobs = [];
@@ -222,10 +233,7 @@ async function runBenchmark({ agents, scenarios, repeat, timeoutSec, models, out
     }
     if (running.size) await Promise.race(running);
   }
-  process.off('SIGINT', onSignal);
-  process.off('SIGTERM', onSignal);
-  rmrf(workRoot);
-  return { results };
+  return results;
 }
 
 module.exports = { runBenchmark, runAttempt, parseTap, classify, CATEGORY_LABEL };
