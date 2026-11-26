@@ -1,6 +1,6 @@
 # Faultline Bench
 
-Benchmark AI coding agent command-line interfaces (CLIs) including Claude Code, Codex CLI, Gemini CLI, OpenCode, Antigravity CLI, and Cursor Agent on 6 isolated tasks with hidden tests and a local HTML report.
+Find the best AI coding agent for your codebase. Faultline Bench runs agent CLIs such as Claude Code, Codex CLI, Gemini CLI, OpenCode, Antigravity CLI and Cursor Agent on 6 tasks, grades them with hidden tests, and writes a local HTML report.
 
 **Warning:** Agents run with auto-approve flags enabled inside a throwaway temporary copy of each scenario, and they can still execute commands on your machine. Every run uses your own AI subscriptions or API credits.
 
@@ -9,10 +9,12 @@ Benchmark AI coding agent command-line interfaces (CLIs) including Claude Code, 
 Install the runtime, version control, and at least one supported agent CLI before you run a benchmark:
 
 - **Node.js 18.19 or newer**: runs the CLI and grades solutions with `node --test`
-- **Git**: creates a baseline commit in each temporary workspace and captures diffs
-- **At least one agent CLI**: install and sign in to a supported CLI, or use `oracle` and `noop` for dry runs without AI
+- **Git**: required; it records a baseline in each temporary workspace and captures diffs (the run stops with a clear message if git is missing)
+- **At least one agent CLI**: installed and signed in
 
-Faultline Bench includes primary adapters for `claude` (Claude Code), `codex` (Codex CLI), `gemini` (Gemini CLI), `opencode` (OpenCode), and `agy` or `antigravity` (Antigravity CLI). Experimental adapters support `qwen` (Qwen Code), `cursor` (`cursor-agent`), `copilot` (GitHub Copilot CLI), `amp` (Amp), `aider` (Aider), and `goose` (Goose).
+Faultline Bench includes primary adapters for `claude` (Claude Code), `codex` (Codex CLI), `gemini` (Gemini CLI), `opencode` (OpenCode), and `agy` or `antigravity` (Antigravity CLI).
+
+Experimental adapters support `qwen` (Qwen Code), `cursor` (`cursor-agent`), `copilot` (GitHub Copilot CLI), `amp` (Amp), `aider` (Aider), and `goose` (Goose).
 
 ## Run your first benchmark
 
@@ -56,7 +58,7 @@ Faultline Bench accepts options on `faultline` and `faultline run`, and supports
 
 ## Built-in benchmark scenarios
 
-Each attempt copies the scenario repository and writes `TASK.md` into a fresh directory, then copies hidden grading tests in only after the agent finishes:
+Each attempt starts from a fresh copy of the scenario with a `TASK.md`. Hidden grading tests are added only after the agent finishes:
 
 | ID | Kind | Difficulty | Suites |
 | --- | --- | --- | --- |
@@ -69,7 +71,9 @@ Each attempt copies the scenario repository and writes `TASK.md` into a fresh di
 
 ## Add a custom agent CLI
 
-Pass `--agent-cmd` with a `name=command args {prompt}` specification to benchmark any CLI that accepts a prompt. Faultline Bench splits the command on whitespace, substitutes `{prompt}` with the task instruction (or appends it if omitted), and extracts token and cost fields from any JSON printed to standard output.
+Pass `--agent-cmd` with a `name=command args {prompt}` specification to benchmark any CLI that accepts a prompt.
+
+Faultline Bench splits the command on whitespace, substitutes `{prompt}` with the task instruction (or appends it if omitted), and extracts token and cost fields from any JSON printed to standard output.
 
 Run a custom agent alongside built-in options:
 
@@ -92,7 +96,9 @@ faultline run --agents oracle,noop
 
 ## Understand the report and failure categories
 
-Each run writes a self-contained `report.html`, structured `results.json`, and per-attempt `.log`, `.diff`, and `.grade.txt` files under the `--out` directory. The HTML report includes three views:
+Each run writes a self-contained `report.html`, structured `results.json`, and per-attempt `.log`, `.diff`, and `.grade.txt` files under the `--out` directory.
+
+The HTML report includes three views:
 
 - **Leaderboard**: ranks agents by solve rate, hidden test pass rate, median duration, reported tokens and cost, failure breakdown, and repeat consistency when `--repeat` exceeds `1`
 - **Scenario matrix**: compares per-scenario solve counts and median durations across agents, linking directly to each attempt
@@ -105,13 +111,13 @@ Faultline Bench classifies every attempt into one of 6 outcomes:
 | `passed` | Passed | All hidden tests ran and passed |
 | `tests_failed` | Wrong behavior (tests fail) | Agent modified files and hidden tests ran, with at least 1 failure |
 | `broken_code` | Code does not load / tests crash | Agent modified files, but hidden tests crashed or timed out |
-| `no_changes` | Made no changes | Agent exited with code `0` without modifying any files |
-| `agent_error` | Agent crashed or refused | Agent exited non-zero without modifying any files |
+| `no_changes` | Made no changes | Agent exited with code `0`, reported no error, and modified no files |
+| `agent_error` | Agent crashed or refused | Agent exited non-zero, or its CLI reported an error, and it modified no files; the reason appears in the console and `results.json` |
 | `timeout` | Timed out | Agent exceeded the per-task timeout and terminated |
 
 ## Local execution and privacy
 
-Faultline Bench runs locally with no accounts, no telemetry, and no uploaded code or results. The generated `report.html` loads no external fonts, scripts, or stylesheets, while the third-party agent CLIs you select communicate with their own AI providers as usual.
+Faultline Bench itself has no accounts and no telemetry, and it uploads nothing. The agent CLIs you select send the scenario code to their own AI providers, as they normally do.
 
 ## License and prior art credits
 

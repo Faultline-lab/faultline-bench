@@ -9,9 +9,6 @@
     "type": "git",
     "url": "git+https://github.com/samirsawarkar/faultline-bench.git"
   },
-  "bugs": {
-    "url": "https://github.com/samirsawarkar/faultline-bench/issues"
-  },
   "bin": {
     "faultline": "bin/faultline.js",
     "faultline-bench": "bin/faultline.js"
