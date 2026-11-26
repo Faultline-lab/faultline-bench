@@ -7,3 +7,4 @@ require('./parsers.test');
 require('./harness.test');
 require('./cli.test');
 require('./report.test');
+require('./fixes.test');
