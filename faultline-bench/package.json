@@ -7,7 +7,7 @@
   "homepage": "https://faultline-labs.com",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/samirsawarkar/faultline-bench.git"
+    "url": "git+https://github.com/Faultline-lab/faultline-bench.git"
   },
   "bin": {
     "faultline": "bin/faultline.js",
