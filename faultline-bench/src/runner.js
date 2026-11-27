@@ -3,7 +3,7 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { run, runSync, which, rmrf } = require('./util');
+const { run, runSync, which, rmrf, killAll } = require('./util');
 const { PROMPT, runBuiltin } = require('./agents');
 
 const GIT_ID = ['-c', 'user.email=bench@faultline.local', '-c', 'user.name=Faultline Bench', '-c', 'commit.gpgsign=false', '-c', 'core.autocrlf=false'];
@@ -14,20 +14,17 @@ function git(cwd, args) {
 }
 
 /** Creates an isolated copy of the scenario's starting snapshot, with a git baseline. */
-function prepareWorkspace(scenario, workspace, hasGit) {
+function prepareWorkspace(scenario, workspace) {
   rmrf(workspace);
   fs.mkdirSync(workspace, { recursive: true });
   fs.cpSync(path.join(scenario.dir, 'repo'), workspace, { recursive: true });
   fs.writeFileSync(path.join(workspace, 'TASK.md'), `# Task: ${scenario.title}\n\n${scenario.task.trim()}\n`);
-  if (hasGit) {
-    git(workspace, ['init', '-q']);
-    git(workspace, ['add', '-A']);
-    git(workspace, ['commit', '-q', '-m', 'faultline baseline']);
-  }
+  git(workspace, ['init', '-q']);
+  git(workspace, ['add', '-A']);
+  git(workspace, ['commit', '-q', '-m', 'faultline baseline']);
 }
 
-function captureDiff(workspace, hasGit) {
-  if (!hasGit) return { diff: '', files: [], insertions: 0, deletions: 0 };
+function captureDiff(workspace) {
   git(workspace, ['add', '-A']);
   const diff = git(workspace, ['diff', '--cached', '--no-color']).stdout;
   const numstat = git(workspace, ['diff', '--cached', '--numstat']).stdout;
@@ -77,10 +74,10 @@ async function grade(scenario, workspace) {
   return { ...tap, timedOut: r.timedOut, output: (r.stdout + r.stderr).slice(-20000) };
 }
 
-function classify({ agentResult, tests, changes }) {
+function classify({ agentResult, tests, changes, agentReportedError }) {
   if (tests.ran && tests.total > 0 && tests.failed === 0 && tests.passed === tests.total) return 'passed';
   if (agentResult.timedOut) return 'timeout';
-  if (changes.files.length === 0) return agentResult.code !== 0 ? 'agent_error' : 'no_changes';
+  if (changes.files.length === 0) return agentResult.code !== 0 || agentReportedError ? 'agent_error' : 'no_changes';
   if (!tests.ran || tests.timedOut) return 'broken_code';
   return 'tests_failed';
 }
@@ -97,7 +94,7 @@ const CATEGORY_LABEL = {
 /**
  * Runs one attempt: fresh workspace -> agent -> diff -> hidden tests -> result record.
  */
-async function runAttempt({ agent, scenario, rep, workRoot, outDir, timeoutSec, model, hasGit, onLine }) {
+async function runAttempt({ agent, scenario, rep, workRoot, outDir, timeoutSec, model, onLine }) {
   const slug = `${agent.id}__${scenario.id}__r${rep}`;
   const workspace = path.join(workRoot, slug);
   const attemptDir = path.join(outDir, 'attempts');
@@ -105,7 +102,7 @@ async function runAttempt({ agent, scenario, rep, workRoot, outDir, timeoutSec, 
   const logFile = path.join(attemptDir, `${slug}.log`);
   fs.writeFileSync(logFile, '');
 
-  prepareWorkspace(scenario, workspace, hasGit);
+  prepareWorkspace(scenario, workspace);
   const timeoutMs = (timeoutSec || scenario.timeoutSec || 600) * 1000;
   const startedAt = new Date().toISOString();
 
@@ -113,23 +110,33 @@ async function runAttempt({ agent, scenario, rep, workRoot, outDir, timeoutSec, 
   if (agent.builtin) {
     agentResult = runBuiltin(agent, scenario, workspace);
   } else {
-    const args = agent.args(PROMPT, { model, workspace });
+    const args = agent.args(PROMPT, { model, workspace, timeoutSec: timeoutMs / 1000 });
     fs.appendFileSync(logFile, `$ ${agent.bin[0]} ${args.map((a) => (a === PROMPT ? '"<prompt>"' : a)).join(' ')}\n\n`);
     agentResult = await run(agent.exe, args, {
       cwd: workspace,
       timeoutMs,
       logFile,
       onLine,
-      env: { ...process.env, FORCE_COLOR: '0', NO_COLOR: '1' },
+      // PWD too: some CLIs (OpenCode) take their project dir from PWD, not the spawn cwd.
+      env: { ...process.env, PWD: workspace, FORCE_COLOR: '0', NO_COLOR: '1' },
     });
     if (agentResult.error) fs.appendFileSync(logFile, `\n[faultline] failed to start: ${agentResult.error.message || agentResult.error}\n`);
     if (agentResult.timedOut) fs.appendFileSync(logFile, `\n[faultline] killed after ${timeoutMs / 1000}s timeout\n`);
   }
 
-  const changes = captureDiff(workspace, hasGit);
+  const changes = captureDiff(workspace);
   const tests = await grade(scenario, workspace);
   const usage = agent.parseUsage ? agent.parseUsage(agentResult.stdout || '', agentResult.stderr || '') : {};
-  const category = classify({ agentResult, tests, changes });
+  const agentReportedError = !!usage.agentReportedError;
+  const category = classify({ agentResult, tests, changes, agentReportedError });
+  const reason =
+    category !== 'agent_error'
+      ? null
+      : agentResult.error
+        ? `agent could not be started: ${agentResult.error.message || agentResult.error}`
+        : agentResult.code !== 0
+          ? `agent exited with code ${agentResult.code} and made no changes`
+          : 'agent exited 0 but reported an error and made no changes';
   const touchedTests = changes.files.filter((f) => /(^|\/)test\//.test(f) || /\.test\.js$/.test(f));
 
   const diffFile = path.join(attemptDir, `${slug}.diff`);
@@ -145,8 +152,10 @@ async function runAttempt({ agent, scenario, rep, workRoot, outDir, timeoutSec, 
     startedAt,
     passed: category === 'passed',
     category,
+    reason,
     durationMs: agentResult.durationMs,
     exitCode: agentResult.code,
+    agentReportedError,
     timedOut: agentResult.timedOut,
     tests: { total: tests.total, passed: tests.passed, failed: tests.failed, failures: tests.failures },
     usage: {
@@ -169,9 +178,29 @@ async function runAttempt({ agent, scenario, rep, workRoot, outDir, timeoutSec, 
  * each agent works through its own queue sequentially.
  */
 async function runBenchmark({ agents, scenarios, repeat, timeoutSec, models, outDir, workRoot, parallel, onProgress }) {
-  const hasGit = !!which('git');
+  // Without git every attempt would silently look like "no changes".
+  if (!which('git')) throw new Error('git is required to detect agent changes but was not found on PATH. Install git and try again.');
+  const ownWorkRoot = !workRoot;
   workRoot = workRoot || fs.mkdtempSync(path.join(os.tmpdir(), 'faultline-'));
   fs.mkdirSync(workRoot, { recursive: true });
+  // Ctrl+C: kill agent process trees, exit 130. Only delete a work dir we created; never a caller's --workdir.
+  const onSignal = () => {
+    killAll();
+    if (ownWorkRoot) rmrf(workRoot);
+    process.exit(130);
+  };
+  process.once('SIGINT', onSignal);
+  process.once('SIGTERM', onSignal);
+  try {
+    return { results: await runQueues({ agents, scenarios, repeat, timeoutSec, models, outDir, workRoot, parallel, onProgress }) };
+  } finally {
+    process.off('SIGINT', onSignal);
+    process.off('SIGTERM', onSignal);
+    if (ownWorkRoot) rmrf(workRoot); // attempts already removed their own workspaces
+  }
+}
+
+async function runQueues({ agents, scenarios, repeat, timeoutSec, models, outDir, workRoot, parallel, onProgress }) {
   const results = [];
   const queues = agents.map((agent) => {
     const jobs = [];
@@ -190,7 +219,6 @@ async function runBenchmark({ agents, scenarios, repeat, timeoutSec, models, out
         outDir,
         timeoutSec,
         model: models[job.agent.id],
-        hasGit,
       });
       results.push(r);
       finished++;
@@ -208,8 +236,7 @@ async function runBenchmark({ agents, scenarios, repeat, timeoutSec, models, out
     }
     if (running.size) await Promise.race(running);
   }
-  rmrf(workRoot);
-  return { results, hasGit };
+  return results;
 }
 
 module.exports = { runBenchmark, runAttempt, parseTap, classify, CATEGORY_LABEL };

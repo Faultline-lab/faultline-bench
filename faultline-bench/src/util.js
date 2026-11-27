@@ -75,6 +75,15 @@ function resolveLaunch(exePath, args) {
     /* fall through */
   }
   const dir = path.dirname(exePath);
+  // Some shims only wrap PowerShell with a .ps1 beside them (e.g. cursor-agent):
+  // launching the .ps1 directly avoids cmd.exe quoting entirely.
+  const ps1 = /powershell/i.test(text) && text.match(/"%~?dp0%?\\?([^"]+?\.ps1)"/i);
+  if (ps1) {
+    const target = path.join(dir, ps1[1]);
+    if (fs.existsSync(target)) {
+      return { command: 'powershell.exe', args: ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', target, ...args], shell: false };
+    }
+  }
   const matches = [...text.matchAll(/"%~?dp0%?\\?([^"]+?)"\s+%\*/g)];
   if (matches.length) {
     const target = path.join(dir, matches[matches.length - 1][1]);
@@ -88,11 +97,12 @@ function resolveLaunch(exePath, args) {
   return { command: [`"${exePath}"`, ...quoted].join(' '), args: [], shell: true };
 }
 
-function killTree(child) {
+function killTree(child, sync = false) {
   if (!child || child.exitCode !== null) return;
   try {
-    // async: taskkill can take seconds and must not block other running agents
-    if (isWin) spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true });
+    // async by default: taskkill can take seconds and must not block other running agents.
+    // sync when exiting, so the tree is gone before we delete its working dir.
+    if (isWin) (sync ? spawnSync : spawn)('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true });
     else process.kill(-child.pid, 'SIGKILL');
   } catch {
     try {
@@ -101,6 +111,12 @@ function killTree(child) {
       /* already gone */
     }
   }
+}
+
+// Children started by run() that have not exited yet, so Ctrl+C can kill them.
+const live = new Set();
+function killAll() {
+  for (const child of live) killTree(child, true);
 }
 
 /**
@@ -126,6 +142,7 @@ function run(command, args, opts = {}) {
       resolve({ code: -1, stdout: '', stderr: String(error), timedOut: false, durationMs: 0, error });
       return;
     }
+    live.add(child);
     const log = logFile ? fs.createWriteStream(logFile, { flags: 'a' }) : null;
     let stdout = '';
     let stderr = '';
@@ -156,6 +173,7 @@ function run(command, args, opts = {}) {
     const finish = (code, error) => {
       if (done) return;
       done = true;
+      live.delete(child);
       if (timer) clearTimeout(timer);
       const result = { code, stdout, stderr, timedOut, durationMs: Date.now() - started, error };
       if (log) log.end(() => resolve(result));
@@ -232,6 +250,7 @@ module.exports = {
   run,
   runSync,
   killTree,
+  killAll,
   fmtDuration,
   fmtTokens,
   fmtCost,
