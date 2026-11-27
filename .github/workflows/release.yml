@@ -29,7 +29,9 @@ jobs:
             echo "Tag $GITHUB_REF_NAME does not match package.json version $version"
             exit 1
           fi
+      # Trusted publishing (OIDC): npm trusts this workflow, so no NPM_TOKEN secret.
+      # It needs npm 11.5.1 or later; Node 22 ships an older npm.
+      - name: Update npm
+        run: npm install -g npm@latest
       - name: Publish
         run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
