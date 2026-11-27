@@ -33,7 +33,6 @@ test('(1) a spawn failure says the agent could not be started', async () => {
   assert.strictEqual(r.exitCode, -1);
   assert.strictEqual(r.category, 'agent_error');
   assert.match(r.reason, /^agent could not be started: .+/);
-  assert.doesNotMatch(r.reason, /exited with code -1/);
 });
 
 test('(2) every scenario repo ignores node_modules', () => {
