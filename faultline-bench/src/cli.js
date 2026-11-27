@@ -31,6 +31,7 @@ ${c.bold('Run options')}
   --agent-cmd <spec>     Add any CLI: "name=mycli --yes -p {prompt}" (repeatable)
   --parallel <n>         Agents to run at the same time (default: all selected)
   --out <dir>            Where to write the report (default ./faultline-results/<run>)
+  --workdir <dir>        Where to put the temporary scenario copies (default: $FAULTLINE_WORKDIR or system temp)
   -y, --yes              Skip confirmation prompts
   --no-open              Do not open the HTML report when done
 
@@ -58,12 +59,14 @@ function parseArgs(argv) {
       if (!takes.has(key)) throw new Error(`Unknown option --${key}. Run "faultline --help".`);
       if (val === undefined) {
         val = argv[++i];
-        if (val === undefined) throw new Error(`--${key} needs a value`);
+        // A negative number is a value (validated later), not a flag.
+        if (val === undefined || (val.startsWith('-') && !/^-\d/.test(val))) throw new Error(`--${key} needs a value`);
       }
       if (key === 'model') opts.model.push(val);
       else if (key === 'agent-cmd') opts.agentCmd.push(val);
       else opts[key] = val;
-    } else opts._.push(a);
+    } else if (a.startsWith('-') && a !== '-') throw new Error(`Unknown option ${a}. Run "faultline --help".`);
+    else opts._.push(a);
   }
   return opts;
 }
@@ -204,7 +207,8 @@ async function cmdRun(opts) {
     console.log(c.yellow('  ⚠ Agents run with auto-approve (e.g. --dangerously-skip-permissions) inside a temporary'));
     console.log(c.yellow('    copy of each scenario. They can still run commands on this machine. This uses your'));
     console.log(c.yellow('    own AI subscription or API credits.'));
-    if (interactive() && !opts.yes) {
+    if (!opts.yes) {
+      if (!interactive()) throw new Error('Not running in a terminal, so agents cannot be confirmed before they start with auto-approve. Re-run with --yes to allow it.');
       const ans = await ask(`\n  Start? ${c.dim('(Y/n)')} `);
       if (ans && !/^y(es)?$/i.test(ans)) {
         console.log('  Cancelled.\n');

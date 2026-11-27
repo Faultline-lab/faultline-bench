@@ -2,11 +2,8 @@
 
 const test = require('node:test');
 const assert = require('node:assert');
-const path = require('node:path');
-const { spawnSync } = require('node:child_process');
+const { cli } = require('./helpers');
 
-const BIN = path.join(__dirname, '..', 'bin', 'faultline.js');
-const CWD = path.join(__dirname, '..');
 const SCENARIO_IDS = [
   'pagination-off-by-one',
   'duration-parser',
@@ -15,15 +12,6 @@ const SCENARIO_IDS = [
   'csv-parser',
   'event-emitter',
 ];
-
-function cli(args) {
-  return spawnSync(process.execPath, [BIN, ...args], {
-    cwd: CWD,
-    encoding: 'utf8',
-    env: { ...process.env, NO_COLOR: '1' },
-    timeout: 60000,
-  });
-}
 
 test('--version prints the package version', () => {
   const r = cli(['--version']);
