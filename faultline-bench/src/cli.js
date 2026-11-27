@@ -59,7 +59,8 @@ function parseArgs(argv) {
       if (!takes.has(key)) throw new Error(`Unknown option --${key}. Run "faultline --help".`);
       if (val === undefined) {
         val = argv[++i];
-        if (val === undefined || val.startsWith('-')) throw new Error(`--${key} needs a value`);
+        // A negative number is a value (validated later), not a flag.
+        if (val === undefined || (val.startsWith('-') && !/^-\d/.test(val))) throw new Error(`--${key} needs a value`);
       }
       if (key === 'model') opts.model.push(val);
       else if (key === 'agent-cmd') opts.agentCmd.push(val);

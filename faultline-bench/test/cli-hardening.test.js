@@ -4,20 +4,15 @@ const test = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
-const { spawnSync } = require('node:child_process');
+const { cli } = require('./helpers');
 
-const BIN = path.join(__dirname, '..', 'bin', 'faultline.js');
-const CWD = path.join(__dirname, '..');
-
-// spawnSync uses pipes, so stdin and stdout are never TTYs here.
-function cli(args) {
-  return spawnSync(process.execPath, [BIN, ...args], {
-    cwd: CWD,
-    encoding: 'utf8',
-    env: { ...process.env, NO_COLOR: '1' },
-    timeout: 120000,
-  });
-}
+test('a negative number is taken as the value, spaced or with =', () => {
+  for (const args of [['--timeout', '-5'], ['--timeout=-5']]) {
+    const r = cli(['run', ...args, '--agents', 'oracle']);
+    assert.strictEqual(r.status, 1, args.join(' '));
+    assert.match(r.stderr, /--timeout must be a whole number/);
+  }
+});
 
 test('a value option followed by another flag does not swallow it', () => {
   const r = cli(['run', '--agents', '--yes']);
@@ -47,18 +42,20 @@ test('without a TTY, real agents refuse to start unless --yes is given', () => {
   assert.doesNotMatch(r.stdout, /tests\s+\S+\s+\[1\/1\]/, 'an attempt ran');
 });
 
-test('without a TTY, oracle still runs without --yes', () => {
-  // Scratch dir next to the tests, not the system temp folder.
-  const tmp = fs.mkdtempSync(path.join(__dirname, '.tmp-hardening-'));
-  const out = path.join(tmp, 'out');
-  try {
-    const r = cli(['run', '--agents', 'oracle', '--scenarios', 'pagination-off-by-one', '--out', out, '--workdir', tmp, '--no-open']);
-    assert.strictEqual(r.status, 0, r.stderr);
-    assert.ok(fs.readdirSync(out).length, 'no report written');
-  } finally {
-    fs.rmSync(tmp, { recursive: true, force: true });
-  }
-});
+for (const agent of ['oracle', 'noop']) {
+  test(`without a TTY, ${agent} still runs without --yes`, () => {
+    // Scratch dir next to the tests, not the system temp folder.
+    const tmp = fs.mkdtempSync(path.join(__dirname, '.tmp-hardening-'));
+    const out = path.join(tmp, 'out');
+    try {
+      const r = cli(['run', '--agents', agent, '--scenarios', 'pagination-off-by-one', '--out', out, '--workdir', tmp, '--no-open']);
+      assert.strictEqual(r.status, 0, r.stderr);
+      assert.ok(fs.readdirSync(out).length, 'no report written');
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+}
 
 test('help documents --workdir', () => {
   const r = cli(['--help']);
