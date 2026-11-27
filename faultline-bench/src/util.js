@@ -75,6 +75,15 @@ function resolveLaunch(exePath, args) {
     /* fall through */
   }
   const dir = path.dirname(exePath);
+  // Some shims only wrap PowerShell with a .ps1 beside them (e.g. cursor-agent):
+  // launching the .ps1 directly avoids cmd.exe quoting entirely.
+  const ps1 = /powershell/i.test(text) && text.match(/"%~?dp0%?\\?([^"]+?\.ps1)"/i);
+  if (ps1) {
+    const target = path.join(dir, ps1[1]);
+    if (fs.existsSync(target)) {
+      return { command: 'powershell.exe', args: ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', target, ...args], shell: false };
+    }
+  }
   const matches = [...text.matchAll(/"%~?dp0%?\\?([^"]+?)"\s+%\*/g)];
   if (matches.length) {
     const target = path.join(dir, matches[matches.length - 1][1]);
