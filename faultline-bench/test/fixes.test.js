@@ -94,7 +94,11 @@ for (const sig of ['SIGINT', 'SIGTERM']) {
     const { r, sysTmp, pid } = signalRun(sig, undefined);
     assert.strictEqual(r.status, 130, r.stderr);
     assert.deepStrictEqual(fs.readdirSync(sysTmp), [], 'runner-created work dir removed');
-    assert.throws(() => process.kill(pid, 0), 'agent process killed');
+    // A killed process can linger briefly until the OS reaps it (seen on Linux CI), so poll.
+    const alive = () => { try { process.kill(pid, 0); return true; } catch { return false; } };
+    const until = Date.now() + 3000;
+    while (alive() && Date.now() < until) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50);
+    assert.ok(!alive(), 'agent process killed');
   });
 
   test(`(d) ${sig}: a caller-supplied workRoot survives`, () => {
