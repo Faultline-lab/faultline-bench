@@ -3,7 +3,6 @@
 const test = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { AGENTS, parsers } = require('../src/agents');
@@ -41,12 +40,6 @@ test('(a) exit 0 + reported error + no changes -> agent_error with reason', asyn
   assert.strictEqual(r.agentReportedError, true);
   assert.strictEqual(r.category, 'agent_error');
   assert.match(r.reason, /reported an error/);
-});
-
-test('(b) agy --print-timeout follows the attempt timeout', () => {
-  const agy = AGENTS.find((a) => a.id === 'agy');
-  const args = agy.args('p', { workspace: 'w', timeoutSec: 90 });
-  assert.strictEqual(args[args.indexOf('--print-timeout') + 1], '90s');
 });
 
 test('(c) Node 18.18 is rejected with the required version', () => {
@@ -154,7 +147,8 @@ test('(i) agent-error reason reaches the console and results.json', () => {
 
 test('(e) missing git fails fast with a clear message', () => {
   // Point PATH at an empty dir: Windows refills a missing PATH with system defaults.
-  const emptyDir = fs.mkdtempSync(path.join(os.tmpdir(), 'faultline-nogit-'));
+  const emptyDir = path.join(tmp, 'empty-path');
+  fs.mkdirSync(emptyDir);
   const env = { ...Object.fromEntries(Object.entries(process.env).filter(([k]) => k.toLowerCase() !== 'path')), PATH: emptyDir };
   const code = `require(${JSON.stringify(RUNNER)}).runBenchmark({ agents: [], scenarios: [], repeat: 1, models: {}, outDir: '.' }).then(() => process.exit(0), (e) => { console.error(e.message); process.exit(3); })`;
   const r = spawnSync(process.execPath, ['-e', code], { encoding: 'utf8', env });

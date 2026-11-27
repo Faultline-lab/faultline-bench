@@ -131,9 +131,11 @@ async function runAttempt({ agent, scenario, rep, workRoot, outDir, timeoutSec, 
   const reason =
     category !== 'agent_error'
       ? null
-      : agentResult.code !== 0
-        ? `agent exited with code ${agentResult.code} and made no changes`
-        : 'agent exited 0 but reported an error and made no changes';
+      : agentResult.error
+        ? `agent could not be started: ${agentResult.error.message || agentResult.error}`
+        : agentResult.code !== 0
+          ? `agent exited with code ${agentResult.code} and made no changes`
+          : 'agent exited 0 but reported an error and made no changes';
   const touchedTests = changes.files.filter((f) => /(^|\/)test\//.test(f) || /\.test\.js$/.test(f));
 
   const diffFile = path.join(attemptDir, `${slug}.diff`);
