@@ -28,7 +28,7 @@ function cli(args) {
 test('--version prints the package version', () => {
   const r = cli(['--version']);
   assert.strictEqual(r.status, 0, r.stderr);
-  assert.strictEqual(r.stdout.trim(), '0.1.0');
+  assert.strictEqual(r.stdout.trim(), require('../package.json').version);
 });
 
 test('list prints every scenario id', () => {
