@@ -1,10 +1,7 @@
 'use strict';
 
-// `node --test test/` passes the directory through as one entry point on current
-// Node, which resolves to this file. Requiring the suites here keeps the
-// package.json test script working on old and new Node alike.
-require('./parsers.test');
-require('./harness.test');
-require('./cli.test');
-require('./report.test');
-require('./fixes.test');
+// `node --test test/` resolves the directory to this file on Node 22+, while
+// Node 18/20 search the directory for *.test.js. Loading every suite here keeps
+// both working and means a new test file can never be skipped by accident.
+const fs = require('node:fs');
+for (const f of fs.readdirSync(__dirname).filter((n) => n.endsWith('.test.js')).sort()) require(`./${f}`);
