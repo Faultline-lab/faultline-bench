@@ -73,3 +73,15 @@ test('(3) a .cmd shim that calls PowerShell launches the .ps1 directly', { skip:
   assert.match(launch.command, /powershell(\.exe)?$/i);
   assert.deepStrictEqual(launch.args, ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ps1, 'run', '--auto']);
 });
+
+test('(5) agents get PWD set to their workspace (OpenCode reads PWD, not the spawn cwd)', async () => {
+  const probe = path.join(tmp, 'probe-pwd.js');
+  fs.writeFileSync(probe, "require('node:fs').writeFileSync('pwd.txt', String(process.env.PWD));\n");
+  const agent = { id: 'pwdprobe', name: 'PWD probe', bin: ['node'], exe: process.execPath, args: () => [probe] };
+  const workRoot = path.join(tmp, 'w-pwd');
+  const r = await runAttempt({ agent, scenario, rep: 1, workRoot, outDir: path.join(tmp, 'o-pwd'), timeoutSec: 60 });
+  const diff = fs.readFileSync(path.join(tmp, 'o-pwd', 'attempts', 'pwdprobe__polish__r1.diff'), 'utf8');
+  const m = diff.match(/^\+(?!\+\+)(.+)$/m);
+  assert.ok(m, 'probe wrote pwd.txt');
+  assert.ok(path.resolve(m[1]).startsWith(path.resolve(workRoot)), `PWD ${m[1]} should be inside ${workRoot}`);
+});

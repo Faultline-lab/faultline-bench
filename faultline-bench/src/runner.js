@@ -117,7 +117,8 @@ async function runAttempt({ agent, scenario, rep, workRoot, outDir, timeoutSec, 
       timeoutMs,
       logFile,
       onLine,
-      env: { ...process.env, FORCE_COLOR: '0', NO_COLOR: '1' },
+      // PWD too: some CLIs (OpenCode) take their project dir from PWD, not the spawn cwd.
+      env: { ...process.env, PWD: workspace, FORCE_COLOR: '0', NO_COLOR: '1' },
     });
     if (agentResult.error) fs.appendFileSync(logFile, `\n[faultline] failed to start: ${agentResult.error.message || agentResult.error}\n`);
     if (agentResult.timedOut) fs.appendFileSync(logFile, `\n[faultline] killed after ${timeoutMs / 1000}s timeout\n`);
