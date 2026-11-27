@@ -103,10 +103,55 @@ const esc = (s) =>
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 
+// ---------- log tail ----------
+// Agent CLIs print machine output: Claude and agy one JSON object (result /
+// response), Codex and OpenCode JSONL events (item.text / part.text). Readers
+// want the final message, so pull it out and fall back to the raw tail.
+function jsonOrNull(s) {
+  try {
+    return JSON.parse(s);
+  } catch {
+    return null;
+  }
+}
+
+function messageOf(ev) {
+  if (!ev || typeof ev !== 'object') return '';
+  if (typeof ev.result === 'string' && ev.result.trim()) return ev.result; // claude
+  if (typeof ev.response === 'string' && ev.response.trim()) return ev.response; // agy
+  const item = ev.item;
+  if (item && item.type === 'agent_message' && typeof item.text === 'string' && item.text.trim()) return item.text; // codex
+  const part = ev.part;
+  if (part && part.type === 'text' && typeof part.text === 'string' && part.text.trim()) return part.text; // opencode
+  return '';
+}
+
+function tail(s, max) {
+  return s.length > max ? `… (${s.length - max} earlier characters omitted)\n` + s.slice(-max) : s;
+}
+
+// The agent's final message from raw CLI output, or the raw tail when nothing parses.
+function logTailText(raw, max = 6000) {
+  const full = String(raw == null ? '' : raw);
+  const whole = jsonOrNull(full.trim());
+  // JSONL: scan backwards so the last message (the final one) wins.
+  const events = whole
+    ? [whole]
+    : full
+        .split(/\r?\n/)
+        .reverse()
+        .map((l) => jsonOrNull(l.trim()))
+        .filter(Boolean);
+  for (const ev of events) {
+    const msg = messageOf(ev);
+    if (msg) return tail(msg, max);
+  }
+  return tail(full, max);
+}
+
 function readTail(file, max) {
   try {
-    const s = fs.readFileSync(file, 'utf8');
-    return s.length > max ? `… (${s.length - max} earlier characters omitted)\n` + s.slice(-max) : s;
+    return logTailText(fs.readFileSync(file, 'utf8'), max);
   } catch {
     return '';
   }
@@ -275,4 +320,4 @@ function writeReports(report, outDir) {
   return { jsonPath, htmlPath };
 }
 
-module.exports = { summarize, printSummary, writeReports, buildHtml };
+module.exports = { summarize, printSummary, writeReports, buildHtml, logTailText };
