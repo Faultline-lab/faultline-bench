@@ -274,7 +274,8 @@ async function cmdRun(opts) {
     finishedAt: new Date().toISOString(),
     environment: { os: `${os.type()} ${os.release()} ${os.arch()}`, node: process.versions.node },
     config: { suite: opts.scenarios ? 'custom' : suite, repeat, timeoutSec: timeoutSec || null, models },
-    agents: agents.map((a) => ({ id: a.id, name: a.name, version: a.version || null })),
+    // Built-in agents never touch the web; any other agent counts as unblocked unless its adapter proves otherwise.
+    agents: agents.map((a) => ({ id: a.id, name: a.name, version: a.version || null, webBlocked: a.builtin ? true : a.webBlocked === true })),
     scenarios: scenarios.map((s) => ({ id: s.id, title: s.title, category: s.category, difficulty: s.difficulty, render: s.render || null })),
     references,
     summary,

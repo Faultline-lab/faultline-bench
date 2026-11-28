@@ -150,7 +150,7 @@ test('gallery cards show PASS/FAIL badges, run N, tests, failure category, time,
   assert.ok(galleryHtml.includes('Wrong behavior (tests fail)'), 'missing failure category label');
   assert.ok(galleryHtml.includes('Code does not load / tests crash'), 'missing broken_code category label');
   assert.ok(galleryHtml.includes('render exited with code 1: SyntaxError'), 'missing renderError text');
-  assert.match(galleryHtml, /<a\b[^>]*href="data:image\/png;base64,[^"]+"[^>]*>\s*<img\b/);
+  assert.match(galleryHtml, /<ab[^>]*href="[^"]+.png"[^>]*>s*<imgb[^>]*src="data:image/png;base64,/);
 });
 
 test('web lookups show badge with evidence tooltip in gallery & details, leaderboard count, and unblocked CLI note', () => {
@@ -232,4 +232,10 @@ test('render paths outside the output folder are never read or embedded', () => 
   const secretB64 = Buffer.from(fs.readFileSync(path.join(secretDir, 'private.svg'))).toString('base64');
   assert.ok(!html.includes(secretB64), 'secret file was embedded');
   assert.ok(!html.includes('TOP-SECRET-MARKER'), 'secret file content leaked');
+});
+
+test('clicking a picture opens the file, and each image is embedded once', () => {
+  const html = buildHtml(report, outDir);
+  assert.ok(!/href="data:/.test(html), 'no data: URI links');
+  assert.match(html, /class="render-link" href="[^"]+\.(svg|png)"/);
 });

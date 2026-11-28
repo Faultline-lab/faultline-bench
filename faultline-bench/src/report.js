@@ -229,7 +229,8 @@ function renderMediaHtml(relPath, outDir, altText, emptyText) {
       return `<div class="render-large"><a href="${esc(cleanRel)}" target="_blank" rel="noopener">Open full render (${Math.round(stat.size / 1024)}&nbsp;KB)</a><div class="muted">Linked (&gt;600&nbsp;KB)</div></div>`;
     }
     const uri = `data:${mime};base64,${fs.readFileSync(abs).toString('base64')}`;
-    return `<a class="render-link" href="${uri}" target="_blank" rel="noopener" title="Open full size"><img src="${uri}" alt="${esc(altText)}" decoding="async"></a>`;
+    // Link to the file itself: browsers refuse to open data: URIs in a new tab, and a second copy would double the size.
+    return `<a class="render-link" href="${esc(cleanRel)}" target="_blank" rel="noopener" title="Open full size"><img src="${uri}" alt="${esc(altText)}" decoding="async"></a>`;
   } catch {
     return `<div class="render-empty">${emptyText ? `<div class="render-error">${esc(emptyText)}</div>` : `Render missing (${esc(cleanRel)})`}</div>`;
   }
