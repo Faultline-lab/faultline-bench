@@ -1,0 +1,11 @@
+{
+  "id": "spinning-hexagon",
+  "order": 7,
+  "title": "Fix balls escaping a spinning hexagon",
+  "category": "physics simulation",
+  "difficulty": "hard",
+  "suites": ["visual"],
+  "timeoutSec": 600,
+  "render": "svg",
+  "task": "`src/sim.js` simulates balls bouncing under gravity inside a regular hexagon rotating at constant angular velocity. Fix the simulation so its physics match the rules below.\n\nExpected behavior:\n\n- `createWorld(options)` initializes the hexagon (`apothem`, `angle`, `angularVelocity`, `gravity`, `restitution`, `friction`, `substeps`) and `balls` (`x`, `y`, `vx`, `vy`, `r`, `mass`).\n- `step(world, dt)` advances the simulation by `dt` seconds and returns `world`.\n- `run(options, steps)` creates a world, steps `steps` times, and returns the array of recorded frames (initial frame plus one per step).\n- Balls stay inside the rotating hexagon at all times: for each of the 6 walls, the outward normal projection of a ball's center plus its radius never exceeds `apothem`.\n- Wall collisions account for the wall's velocity at the contact point (`(-angularVelocity * cy, angularVelocity * cx)` around the origin), applying normal restitution and tangential friction so balls resting on a moving wall gain tangential velocity.\n- Pairwise ball collisions conserve momentum and never increase total mechanical energy when `restitution <= 1`. Equal-mass balls colliding head on with `restitution: 1` swap velocities.\n- Keep the simulation deterministic using the `seed` option (no `Math.random` or `Date`).\n\nRun the tests with `npm test`."
+}

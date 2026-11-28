@@ -1,0 +1,11 @@
+{
+  "id": "engine-sim",
+  "order": 8,
+  "title": "Fix a four-stroke engine simulator",
+  "category": "engineering simulation",
+  "difficulty": "hard",
+  "suites": ["visual"],
+  "timeoutSec": 600,
+  "render": "svg",
+  "task": "`src/engine.js` models a single-cylinder four-stroke engine over a 720-degree cycle, and several physics outputs are wrong. Fix `src/engine.js` so the kinematics, thermodynamics, and crank torque match an ideal Otto cycle.\n\nPhysics model:\n\n- **Kinematics**: `pistonPosition(thetaRad, geom)` returns the wrist-pin distance from the crank axis as `r * cos(thetaRad) + sqrt(l^2 - r^2 * sin^2(thetaRad))`, where `r` is crank radius and `l` is connecting rod length. `thetaRad = 0` is top dead center (TDC), and `thetaRad = pi` is bottom dead center (BDC).\n- **Volume**: `volume(thetaRad, geom)` returns `clearanceVolume + area * (r + l - x)`, where `area = pi * (bore / 2)^2`, `displacement = area * 2 * r`, and `clearanceVolume = geom.clearanceVolume ?? displacement / (compressionRatio - 1)`.\n- **Otto-cycle pressure**: `pressure(thetaDeg, state, geom)` models four 180-degree strokes starting from intake TDC at `0` degrees:\n  - `0 <= deg < 180` (intake): constant `pIntake`.\n  - `180 <= deg < 360` (compression): isentropic compression `pIntake * (vMax / V)^gamma`.\n  - `360 <= deg < 540` (power): constant-volume combustion at compression TDC (`360` degrees) raises pressure from `p2` to `p2 + (gamma - 1) * qIn / clearanceVolume`, followed by isentropic expansion `p3 * (clearanceVolume / V)^gamma`.\n  - `540 <= deg < 720` (exhaust): constant `pExhaust`.\n- **Crank torque**: `torque(thetaDeg, geom, state)` returns `(p - pAtm) * area * r * sin(thetaRad + beta) / cos(beta)`, where `sin(beta) = (r / l) * sin(thetaRad)` and positive torque drives the crank forward during expansion.\n- **Cycle simulation and work**: `simulateCycle(geom, state, stepDeg = 1)` returns `{ thetaDeg, x, V, p, torque }` samples for `0 <= thetaDeg < 720`. `netWorkPerCycle(geomOrSamples, state, stepDeg = 1)` returns the closed-loop integral of `p dV` over one cycle.\n\nKeep all exported names and parameter signatures intact, and run the tests with `npm test`."
+}

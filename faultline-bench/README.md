@@ -42,7 +42,7 @@ Faultline Bench accepts options on `faultline` and `faultline run`, and supports
 | Option | Description |
 | --- | --- |
 | `--agents <ids>` | Comma list of agent IDs such as `claude,codex`, or `all` for every installed CLI |
-| `--suite <name>` | Built-in suite to run: `quick` (3 tasks, default) or `full` (6 tasks) |
+| `--suite <name>` | Built-in suite to run: `quick` (3 tasks, default), `full` (6 tasks) or `visual` (3 simulations you can see) |
 | `--scenarios <ids>` | Comma list of specific scenario IDs to run instead of a suite |
 | `--repeat <n>` | Times to run each scenario to measure consistency (`1` to `20`, default `1`) |
 | `--timeout <sec>` | Per-task timeout in seconds (`10` to `7200`; defaults per scenario to `420s` to `540s`) |
@@ -68,6 +68,24 @@ Each attempt starts from a fresh copy of the scenario with a `TASK.md`. Hidden g
 | `invoice-rounding` | multi-file bug fix | medium | `full` |
 | `csv-parser` | make tests pass | medium | `full` |
 | `event-emitter` | feature + edge cases | hard | `full` |
+| `spinning-hexagon` | physics simulation | hard | `visual` |
+| `engine-sim` | engineering simulation | hard | `visual` |
+| `raytracer` | graphics | hard | `visual` |
+
+### Visual scenarios: see what each agent built
+
+The `visual` suite has three simulations whose result you can look at, not only score:
+
+- **`spinning-hexagon`**: balls bouncing under gravity inside a rotating hexagon. A wrong fix shows balls escaping (drawn in red) and energy blowing up.
+- **`engine-sim`**: a single-cylinder four-stroke engine. The picture animates the piston, rod and crank and plots the pressure-volume loop and the torque curve.
+- **`raytracer`**: a small ray tracer. The picture puts the agent's image next to the correct one with the share of matching pixels.
+
+Hidden tests still decide pass or fail. After grading, Faultline also draws each attempt's result and the correct reference, and the report shows them side by side:
+
+```bash
+faultline run --agents claude,codex --suite visual
+```
+
 
 ## Add a custom agent CLI
 
@@ -98,9 +116,10 @@ faultline run --agents oracle,noop
 
 Each run writes a self-contained `report.html`, structured `results.json`, and per-attempt `.log`, `.diff`, and `.grade.txt` files under the `--out` directory.
 
-The HTML report includes three views:
+The HTML report includes these views:
 
-- **Leaderboard**: ranks agents by solve rate, hidden test pass rate, median duration, reported tokens and cost, failure breakdown, and repeat consistency when `--repeat` exceeds `1`
+- **See the results** (visual scenarios): the reference picture, then every attempt's picture with a PASS or FAIL badge
+- **Leaderboard**: ranks agents by solve rate (with a 95% interval), hidden test pass rate, median duration, reported tokens and cost, web lookups and failure breakdown. With `--repeat` above `1` it adds *Solved every run* (pass^k), *Solved at least once* (pass@k), *Same result every run*, flaky scenarios, and cost and time per solved task
 - **Scenario matrix**: compares per-scenario solve counts and median durations across agents, linking directly to each attempt
 - **Every attempt**: displays failing hidden test names, syntax-highlighted `git` diffs, the tail of agent output logs, exit codes, and a warning if the agent edited visible test files
 
@@ -114,6 +133,10 @@ Faultline Bench classifies every attempt into one of 6 outcomes:
 | `no_changes` | Made no changes | Agent exited with code `0`, reported no error, and modified no files |
 | `agent_error` | Agent crashed or refused | Agent exited non-zero, or its CLI reported an error, and it modified no files; the reason appears in the console and `results.json` |
 | `timeout` | Timed out | Agent exceeded the per-task timeout and terminated |
+
+## Keeping agents from looking up answers
+
+The prompt does not name Faultline or say it is a test, the workspace folder and its git history use neutral names, and the prompt asks agents not to search the web. Where an agent CLI has a verified switch to turn off its web tools (currently Claude Code), Faultline uses it. Every attempt's output is also scanned for web tool calls and download commands; an attempt that looked something up gets a *looked up the web* badge and counts in the leaderboard's *Web lookups* column.
 
 ## Local execution and privacy
 

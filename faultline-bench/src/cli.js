@@ -7,7 +7,7 @@ const readline = require('node:readline');
 const { c, fmtDuration, fmtCost, timestampId, openInBrowser } = require('./util');
 const { detectAgents, parseCustomAgent, findBuiltin, knownAgentIds, AGENTS } = require('./agents');
 const { loadScenarios, selectScenarios } = require('./scenarios');
-const { runBenchmark, CATEGORY_LABEL } = require('./runner');
+const { runBenchmark, renderReferences, CATEGORY_LABEL } = require('./runner');
 const { summarize, printSummary, writeReports } = require('./report');
 
 const VERSION = require('../package.json').version;
@@ -23,7 +23,7 @@ ${c.bold('Usage')}
 
 ${c.bold('Run options')}
   --agents <ids>         Comma list, e.g. claude,codex  ("all" = every installed agent)
-  --suite <name>         quick (3 tasks, default) or full (6 tasks)
+  --suite <name>         quick (3 tasks, default), full (6 tasks) or visual (3 simulations you can see)
   --scenarios <ids>      Run specific scenarios instead of a suite
   --repeat <n>           Run each task n times to measure reliability (default 1)
   --timeout <sec>        Per-task time limit (default: per scenario, 7-9 min)
@@ -167,8 +167,11 @@ async function chooseSuite(opts) {
   console.log('');
   console.log(`  ${c.bold('[1]')} quick  ${c.dim('3 tasks · a few minutes per agent')}`);
   console.log(`  ${c.bold('[2]')} full   ${c.dim('6 tasks · bug fixes, features, multi-file, edge cases')}`);
+  console.log(`  ${c.bold('[3]')} visual ${c.dim('3 simulations · see what each agent built as a picture')}`);
   const ans = await ask(`\n  Which suite? ${c.dim('(Enter = quick)')} `);
-  return ans === '2' || ans.toLowerCase() === 'full' ? 'full' : 'quick';
+  if (ans === '2' || ans.toLowerCase() === 'full') return 'full';
+  if (ans === '3' || ans.toLowerCase() === 'visual') return 'visual';
+  return 'quick';
 }
 
 async function cmdRun(opts) {
@@ -262,6 +265,7 @@ async function cmdRun(opts) {
   clearInterval(heartbeat);
 
   const summary = summarize(results, agents, scenarios, repeat);
+  const references = await renderReferences(scenarios, outDir);
   const report = {
     tool: 'faultline-bench',
     version: VERSION,
@@ -270,8 +274,10 @@ async function cmdRun(opts) {
     finishedAt: new Date().toISOString(),
     environment: { os: `${os.type()} ${os.release()} ${os.arch()}`, node: process.versions.node },
     config: { suite: opts.scenarios ? 'custom' : suite, repeat, timeoutSec: timeoutSec || null, models },
-    agents: agents.map((a) => ({ id: a.id, name: a.name, version: a.version || null })),
-    scenarios: scenarios.map((s) => ({ id: s.id, title: s.title, category: s.category, difficulty: s.difficulty })),
+    // Built-in agents never touch the web; any other agent counts as unblocked unless its adapter proves otherwise.
+    agents: agents.map((a) => ({ id: a.id, name: a.name, version: a.version || null, webBlocked: a.builtin ? true : a.webBlocked === true })),
+    scenarios: scenarios.map((s) => ({ id: s.id, title: s.title, category: s.category, difficulty: s.difficulty, render: s.render || null })),
+    references,
     summary,
     attempts: results,
   };

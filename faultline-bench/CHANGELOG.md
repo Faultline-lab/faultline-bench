@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `visual` suite with three scenarios whose result you can see: a spinning-hexagon physics simulation, a four-stroke engine simulator and a small ray tracer.
+- The report's *See the results* gallery shows the correct reference picture next to every attempt's picture, with PASS or FAIL.
+- Reliability metrics: *Solved every run* (pass^k), *Solved at least once* (pass@k), flaky scenarios, a 95% interval on the solve rate, and cost and time per solved task. They are also in `results.json` under `summary[].metrics`.
+- Web lookup detection: attempts whose output shows web tool calls or download commands get a badge and count in a *Web lookups* column.
+
+### Changed
+
+- The agent prompt no longer names the tool or calls the run an evaluation, and asks agents not to search the web. Claude Code runs with its web tools disabled.
+- Agents no longer see the tool's name or the task id in their folder name or git history.
+- *Consistent* is renamed *Same result every run*.
+
+### Fixed
+
+- Grading still works when Faultline itself runs under `node --test`.
+- The report never embeds a render file from outside its output folder.
+
 ## [0.2.0] - 2026-11-27
 
 ### Added
