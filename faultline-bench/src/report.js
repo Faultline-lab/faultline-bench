@@ -214,6 +214,11 @@ function renderMediaHtml(relPath, outDir, altText, emptyText) {
   }
   const cleanRel = String(relPath).replace(/\\/g, '/');
   const abs = path.resolve(outDir, relPath);
+  // Only files inside the output folder: results.json can be edited, and the report must never embed other files.
+  const inside = path.relative(path.resolve(outDir), abs);
+  if (path.isAbsolute(String(relPath)) || !inside || inside.startsWith('..') || path.isAbsolute(inside)) {
+    return `<div class="render-empty"><div class="render-error">Render path outside the report folder was ignored.</div></div>`;
+  }
   const mime = IMAGE_MIME[path.extname(cleanRel).toLowerCase()];
   try {
     const stat = fs.statSync(abs);

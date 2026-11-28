@@ -216,3 +216,20 @@ test('all agent names, renderErrors, and evidence are HTML-escaped', () => {
   assert.ok(!html.includes('<img src=x onerror=alert(1)>'), 'unescaped img tag leaked');
   assert.ok(html.includes('Codex &lt;script&gt;alert(1)&lt;/script&gt; &amp; &quot;CLI&quot;'));
 });
+
+test('render paths outside the output folder are never read or embedded', () => {
+  const secretDir = path.join(tmp, 'secret');
+  fs.mkdirSync(secretDir, { recursive: true });
+  fs.writeFileSync(path.join(secretDir, 'private.svg'), '<svg xmlns="http://www.w3.org/2000/svg"><text>TOP-SECRET-MARKER</text></svg>');
+  const out = path.join(tmp, 'escape-out');
+  const r = makeFixture(out);
+  r.references = { ...(r.references || {}) };
+  const first = r.scenarios.find((s) => s.render) || r.scenarios[0];
+  r.references[first.id] = '../secret/private.svg';
+  const a = r.attempts.find((x) => x.files && x.files.render);
+  a.files.render = path.join(secretDir, 'private.svg');
+  const html = buildHtml(r, out);
+  const secretB64 = Buffer.from(fs.readFileSync(path.join(secretDir, 'private.svg'))).toString('base64');
+  assert.ok(!html.includes(secretB64), 'secret file was embedded');
+  assert.ok(!html.includes('TOP-SECRET-MARKER'), 'secret file content leaked');
+});
