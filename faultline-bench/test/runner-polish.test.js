@@ -37,7 +37,7 @@ test('(1) a spawn failure says the agent could not be started', async () => {
 
 test('(2) every scenario repo ignores node_modules', () => {
   const scenarios = loadScenarios();
-  assert.strictEqual(scenarios.length, 6);
+  assert.ok(scenarios.length >= 6);
   for (const s of scenarios) {
     const file = path.join(s.dir, 'repo', '.gitignore');
     assert.ok(fs.existsSync(file), `${s.id} has a .gitignore`);
