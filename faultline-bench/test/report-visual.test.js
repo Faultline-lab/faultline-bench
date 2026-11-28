@@ -150,7 +150,7 @@ test('gallery cards show PASS/FAIL badges, run N, tests, failure category, time,
   assert.ok(galleryHtml.includes('Wrong behavior (tests fail)'), 'missing failure category label');
   assert.ok(galleryHtml.includes('Code does not load / tests crash'), 'missing broken_code category label');
   assert.ok(galleryHtml.includes('render exited with code 1: SyntaxError'), 'missing renderError text');
-  assert.match(galleryHtml, /<ab[^>]*href="[^"]+.png"[^>]*>s*<imgb[^>]*src="data:image/png;base64,/);
+  assert.match(galleryHtml, /<a\b[^>]*href="[^"]+\.png"[^>]*>\s*<img\b[^>]*src="data:image\/png;base64,/);
 });
 
 test('web lookups show badge with evidence tooltip in gallery & details, leaderboard count, and unblocked CLI note', () => {
