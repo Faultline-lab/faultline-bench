@@ -18,7 +18,11 @@ function cleanEnv() {
   return env;
 }
 
-function runNodeTest(cwd, files) {
+// Pass test files, not folders: on Node 22+ a folder argument is treated as a module path.
+function runNodeTest(cwd, dirs) {
+  const files = dirs.flatMap((d) =>
+    fs.readdirSync(path.join(cwd, d)).filter((n) => n.endsWith('.test.js')).map((n) => path.join(d, n))
+  );
   return spawnSync(process.execPath, ['--test', ...files], {
     cwd,
     encoding: 'utf8',
