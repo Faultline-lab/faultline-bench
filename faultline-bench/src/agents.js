@@ -7,27 +7,32 @@ const { which, run, resolveLaunch } = require('./util');
 // Every agent gets the same short prompt. The real task lives in TASK.md inside
 // the workspace, so nothing needs shell quoting and every agent sees identical text.
 const PROMPT =
-  'You are being evaluated by Faultline Bench. Read TASK.md in the current directory and complete the task ' +
-  'by editing files in this directory. Work autonomously and do not ask questions. Stop when the task is done.';
+  'Read TASK.md in the current directory and complete the task by editing files in this directory. ' +
+  'Work autonomously and do not ask questions. Do not search the web or fetch URLs; use only the files here. ' +
+  'Stop when the task is done.';
 
 /**
  * Agent adapters. `args(prompt, opts)` builds the non-interactive command line.
  * `parseUsage(stdout, stderr)` extracts whatever usage data the CLI reports.
- * Flags checked against: claude 2.1, codex 0.162, opencode 2.1, agy 1.5. Others are marked experimental.
+ * `webBlocked` is true only when a flag verified against that CLI's --help disables web access.
+ * Flags checked against: claude 2.1.332, codex 0.171.0, opencode 2.1.4, agy 1.5.19. Others are marked experimental.
  */
 const AGENTS = [
   {
     id: 'claude',
     name: 'Claude Code',
     bin: ['claude'],
-    args: (p, o) => ['-p', p, '--output-format', 'json', '--dangerously-skip-permissions', ...(o.model ? ['--model', o.model] : [])],
+    args: (p, o) => ['-p', p, '--output-format', 'json', '--dangerously-skip-permissions', ...(o.model ? ['--model', o.model] : []), '--disallowedTools', 'WebSearch', 'WebFetch'],
+    webBlocked: true,
     parseUsage: parseClaude,
   },
   {
     id: 'codex',
     name: 'Codex CLI',
     bin: ['codex'],
-    args: (p, o) => ['exec', '--json', '--skip-git-repo-check', '--sandbox', 'workspace-write', ...(o.model ? ['-m', o.model] : []), p],
+    // web_search is a top-level config key; "disabled" is documented by the CLI itself.
+    args: (p, o) => ['exec', '--json', '--skip-git-repo-check', '--sandbox', 'workspace-write', '-c', 'web_search="disabled"', ...(o.model ? ['-m', o.model] : []), p],
+    webBlocked: true,
     parseUsage: parseCodex,
   },
   {
@@ -35,6 +40,7 @@ const AGENTS = [
     name: 'Gemini CLI',
     bin: ['gemini'],
     args: (p, o) => ['-p', p, '--yolo', '--output-format', 'json', ...(o.model ? ['-m', o.model] : [])],
+    webBlocked: false,
     parseUsage: parseGemini,
   },
   {
@@ -43,6 +49,7 @@ const AGENTS = [
     bin: ['opencode'],
     // --standalone: private server that exits with the run, instead of the shared background service.
     args: (p, o) => ['run', '--standalone', '--auto', '--format', 'json', ...(o.model ? ['-m', o.model] : []), p],
+    webBlocked: false,
     parseUsage: parseOpenCode,
   },
   {
@@ -51,6 +58,7 @@ const AGENTS = [
     bin: ['agy', 'antigravity'],
     // agy ignores the process cwd unless the workspace is added explicitly.
     args: (p, o) => ['-p', p, '--output-format', 'json', '--add-dir', o.workspace, '--print-timeout', `${o.timeoutSec}s`, '--dangerously-skip-permissions', ...(o.model ? ['--model', o.model] : [])],
+    webBlocked: false,
     parseUsage: parseAgy,
   },
   {
@@ -59,6 +67,7 @@ const AGENTS = [
     bin: ['qwen'],
     experimental: true,
     args: (p, o) => ['-p', p, '--yolo', ...(o.model ? ['-m', o.model] : [])],
+    webBlocked: false,
     parseUsage: parseGeneric,
   },
   {
@@ -67,6 +76,7 @@ const AGENTS = [
     bin: ['cursor-agent'],
     experimental: true,
     args: (p, o) => ['-p', '--force', '--trust', '--output-format', 'json', ...(o.model ? ['--model', o.model] : []), p],
+    webBlocked: false,
     parseUsage: parseGeneric,
   },
   {
@@ -75,6 +85,7 @@ const AGENTS = [
     bin: ['copilot'],
     experimental: true,
     args: (p, o) => ['-p', p, '--allow-all-tools', ...(o.model ? ['--model', o.model] : [])],
+    webBlocked: false,
     parseUsage: parseGeneric,
   },
   {
@@ -83,6 +94,7 @@ const AGENTS = [
     bin: ['amp'],
     experimental: true,
     args: (p) => ['-x', p, '--dangerously-allow-all'],
+    webBlocked: false,
     parseUsage: parseGeneric,
   },
   {
@@ -91,6 +103,7 @@ const AGENTS = [
     bin: ['aider'],
     experimental: true,
     args: (p, o) => ['--yes-always', '--no-auto-commits', '--no-check-update', ...(o.model ? ['--model', o.model] : []), '--message', p],
+    webBlocked: false,
     parseUsage: parseGeneric,
   },
   {
@@ -99,6 +112,7 @@ const AGENTS = [
     bin: ['goose'],
     experimental: true,
     args: (p) => ['run', '-t', p],
+    webBlocked: false,
     parseUsage: parseGeneric,
   },
 ];
@@ -260,6 +274,7 @@ function parseCustomAgent(spec) {
     bin: [bin],
     custom: true,
     args: (p) => rest.map((a) => a.split('{prompt}').join(p)),
+    webBlocked: false,
     parseUsage: parseGeneric,
   };
 }
