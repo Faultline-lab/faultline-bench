@@ -272,4 +272,27 @@ async function runQueues({ agents, scenarios, repeat, timeoutSec, models, outDir
   return results;
 }
 
-module.exports = { runBenchmark, runAttempt, parseTap, classify, CATEGORY_LABEL };
+/**
+ * Renders what the correct solution looks like for each visual scenario, so the report can show it next to
+ * every agent's picture. Returns { scenarioId: 'reference/<id>.render.<ext>' } for the ones that rendered.
+ */
+async function renderReferences(scenarios, outDir) {
+  const refs = {};
+  for (const scenario of scenarios) {
+    if (!scenario.render || !fs.existsSync(path.join(scenario.dir, 'solution'))) continue;
+    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'ws-ref-'));
+    try {
+      fs.cpSync(path.join(scenario.dir, 'repo'), workspace, { recursive: true });
+      fs.cpSync(path.join(scenario.dir, 'solution'), workspace, { recursive: true });
+      const dir = path.join(outDir, 'reference');
+      fs.mkdirSync(dir, { recursive: true });
+      const picture = await renderPicture(scenario, workspace, path.join(dir, `${scenario.id}.render.${scenario.render}`));
+      if (picture.file) refs[scenario.id] = path.relative(outDir, picture.file).replace(/\\/g, '/');
+    } finally {
+      rmrf(workspace);
+    }
+  }
+  return refs;
+}
+
+module.exports = { runBenchmark, runAttempt, renderReferences, parseTap, classify, CATEGORY_LABEL };

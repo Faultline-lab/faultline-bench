@@ -97,3 +97,16 @@ test('the agent sees no tool name or task id in its folder name or git history',
   assert.ok(seen.trim().length > 0, 'probe printed what it saw');
   assert.doesNotMatch(seen, /faultline|secret-task-id|prober/i, `agent could see: ${seen}`);
 });
+
+test('reference pictures are rendered from the solution, only for visual scenarios', async () => {
+  const { renderReferences } = require('../src/runner');
+  const visual = makeScenario('ref-pic', RENDER_OK);
+  fs.mkdirSync(path.join(visual.dir, 'solution', 'src'), { recursive: true });
+  fs.writeFileSync(path.join(visual.dir, 'solution', 'src', 'ok.js'), 'exports.ok = () => true;\n');
+  const plain = makeScenario('ref-plain', null);
+  const out = path.join(tmp, 'out7');
+  const refs = await renderReferences([visual, plain], out);
+  assert.deepEqual(Object.keys(refs), ['ref-pic']);
+  assert.equal(refs['ref-pic'], 'reference/ref-pic.render.svg');
+  assert.match(fs.readFileSync(path.join(out, refs['ref-pic']), 'utf8'), /fixed/);
+});
