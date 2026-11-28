@@ -1,0 +1,5 @@
+{
+  "name": "tiny-tracer",
+  "private": true,
+  "scripts": { "test": "node --test" }
+}

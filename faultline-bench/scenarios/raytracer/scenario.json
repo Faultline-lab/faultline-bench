@@ -1,0 +1,13 @@
+{
+  "id": "raytracer",
+  "order": 9,
+  "title": "Fix a small ray tracer",
+  "category": "graphics",
+  "difficulty": "hard",
+  "suites": [
+    "visual"
+  ],
+  "timeoutSec": 600,
+  "render": "png",
+  "task": "`src/` contains a small CPU ray tracer: `vec.js` (vector math), `scene.js` (the default scene) and `trace.js` (intersections, shading and `render(scene, width, height)`). The images it produces look wrong. Fix the tracer so it renders the scene correctly.\n\nExpected result for `defaultScene()`:\n\n- A red matte ball on the left, a large mirror ball on the right and a small blue ball in front, standing on a grey floor under a light blue sky.\n- One point light, high up on the left. Surfaces facing the light are smoothly shaded (Lambert diffuse plus a small ambient term) with no grainy dark speckles.\n- Each ball casts a hard shadow on the floor, away from the light.\n- The mirror ball shows a correct reflection of the scene (one bounce), including the red ball on its left side.\n- Colors are computed in linear RGB and converted to 8-bit sRGB once, using gamma 2.2.\n\nAPI that must keep working:\n\n- `render(scene, width, height)` returns `{ width, height, pixels }`, where `pixels` is a `Uint8Array` of r, g, b bytes, row by row from the top.\n- `trace.js` also exports `shade`, `intersectSphere`, `intersectPlane`, `normalAt` and `primaryRay`; `vec.js` exports its helpers including `reflect(d, n)`.\n- `normalAt(obj, p)` returns the outward unit normal. `intersectSphere(origin, dir, sphere)` returns the distance along a unit ray, or `Infinity` on a miss.\n\nRun the tests with `npm test`."
+}
