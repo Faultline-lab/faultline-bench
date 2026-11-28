@@ -50,10 +50,39 @@ test('detects plain-text download commands', () => {
   assert.ok(r.evidence.some((e) => /http:\/\/example\.com/.test(e)), r.evidence.join(' | '));
 });
 
-test('detects Invoke-WebRequest', () => {
-  const r = detectWebLookup('Invoke-WebRequest -Uri https://example.com/file.zip -OutFile file.zip');
+test('detects npm view and Invoke-WebRequest', () => {
+  const r = detectWebLookup('Invoke-WebRequest -Uri https://example.com/file.zip -OutFile file.zip\nnpm view left-pad');
   assert.strictEqual(r.detected, true);
   assert.ok(r.evidence.some((e) => /Invoke-WebRequest/i.test(e)), r.evidence.join(' | '));
+  assert.ok(r.evidence.some((e) => /npm view/.test(e)), r.evidence.join(' | '));
+});
+
+test('a URL quoted from a local file is not web use', () => {
+  const log = [
+    JSON.stringify({
+      type: 'assistant',
+      message: { content: [{ type: 'tool_use', name: 'Read', input: { file_path: 'README.md' } }] },
+    }),
+    JSON.stringify({
+      type: 'user',
+      message: { content: [{ type: 'tool_result', content: 'See https://example.com/docs for details.' }] },
+    }),
+  ].join('\n');
+  const r = detectWebLookup(log);
+  assert.strictEqual(r.detected, false, r.evidence.join(' | '));
+  assert.deepStrictEqual(r.evidence, []);
+});
+
+test('a URL printed in the final answer is not web use', () => {
+  const log = [
+    JSON.stringify({
+      type: 'assistant',
+      message: { content: [{ type: 'text', text: 'Done. Upstream lives at https://example.com/project.' }] },
+    }),
+    JSON.stringify({ type: 'result', result: 'All tests pass. See https://example.com/project for context.' }),
+  ].join('\n');
+  assert.strictEqual(detectWebLookup(log).detected, false);
+  assert.strictEqual(detectWebLookup('Done. The file cites https://example.com/docs.').detected, false);
 });
 
 test('returns no evidence for ordinary local work', () => {
@@ -63,8 +92,8 @@ test('returns no evidence for ordinary local work', () => {
 });
 
 test('caps evidence at five entries', () => {
-  const urls = Array.from({ length: 9 }, (_, i) => `https://example.com/${i}`).join(' ');
-  const r = detectWebLookup(urls);
+  const lines = Array.from({ length: 9 }, (_, i) => `curl https://example.com/${i}`).join('\n');
+  const r = detectWebLookup(lines);
   assert.strictEqual(r.detected, true);
   assert.strictEqual(r.evidence.length, 5);
 });
@@ -88,17 +117,15 @@ test('claude blocks WebSearch and WebFetch', () => {
   assert.strictEqual(claude.webBlocked, true);
 });
 
-test('codex disables web_search through its config flag', () => {
+test('codex adds no web flag its --help does not document', () => {
   const codex = AGENTS.find((a) => a.id === 'codex');
   const args = codex.args('p', {});
-  const i = args.indexOf('-c');
-  assert.ok(i >= 0, args.join(' '));
-  assert.strictEqual(args[i + 1], 'web_search="disabled"');
-  assert.strictEqual(codex.webBlocked, true);
+  assert.ok(!args.some((a) => /web_search/.test(a)), args.join(' '));
+  assert.strictEqual(codex.webBlocked, false);
 });
 
 test('adapters without a verified flag report webBlocked false', () => {
-  for (const id of ['gemini', 'opencode', 'agy', 'cursor']) {
+  for (const id of ['codex', 'gemini', 'opencode', 'agy', 'cursor']) {
     const a = AGENTS.find((x) => x.id === id);
     assert.strictEqual(a.webBlocked, false, id);
   }

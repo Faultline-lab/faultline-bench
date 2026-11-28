@@ -15,7 +15,8 @@ const PROMPT =
  * Agent adapters. `args(prompt, opts)` builds the non-interactive command line.
  * `parseUsage(stdout, stderr)` extracts whatever usage data the CLI reports.
  * `webBlocked` is true only when a flag verified against that CLI's --help disables web access.
- * Flags checked against: claude 2.1.332, codex 0.171.0, opencode 2.1.4, agy 1.5.19. Others are marked experimental.
+ * Checked: claude 2.1.332 has --disallowedTools; codex 0.171.0, opencode 2.1.4 and agy 1.5.19
+ * list no web-disable flag in their --help, so they stay false. Others are marked experimental.
  */
 const AGENTS = [
   {
@@ -30,9 +31,8 @@ const AGENTS = [
     id: 'codex',
     name: 'Codex CLI',
     bin: ['codex'],
-    // web_search is a top-level config key; "disabled" is documented by the CLI itself.
-    args: (p, o) => ['exec', '--json', '--skip-git-repo-check', '--sandbox', 'workspace-write', '-c', 'web_search="disabled"', ...(o.model ? ['-m', o.model] : []), p],
-    webBlocked: true,
+    args: (p, o) => ['exec', '--json', '--skip-git-repo-check', '--sandbox', 'workspace-write', ...(o.model ? ['-m', o.model] : []), p],
+    webBlocked: false,
     parseUsage: parseCodex,
   },
   {
