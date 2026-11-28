@@ -1,0 +1,5 @@
+{
+  "name": "spinning-hexagon",
+  "private": true,
+  "scripts": { "test": "node --test" }
+}
