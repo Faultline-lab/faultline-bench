@@ -63,4 +63,12 @@ test('raytracer fails hidden tests on repo/, passes on solution/, and renders va
   fs.mkdirSync(path.join(brokenDir, 'src'), { recursive: true });
   fs.writeFileSync(path.join(brokenDir, 'src', 'trace.js'), 'throw new Error("broken module");\n');
   renderPng(brokenDir, path.join(tmpRoot, 'broken.png'));
+
+  // A tracer stuck in an infinite loop must not hang the renderer either.
+  const hungDir = path.join(tmpRoot, 'hung');
+  fs.mkdirSync(path.join(hungDir, 'src'), { recursive: true });
+  fs.writeFileSync(path.join(hungDir, 'src', 'trace.js'), 'exports.render = () => { for (;;) {} };\n');
+  const started = Date.now();
+  renderPng(hungDir, path.join(tmpRoot, 'hung.png'));
+  assert.ok(Date.now() - started < 20000, 'render must give up on a hung tracer within 20 s');
 });
