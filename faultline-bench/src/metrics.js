@@ -87,10 +87,14 @@ function summarizeAgent(attempts) {
 }
 
 function summarizeAll(attempts) {
-  const byAgent = {};
-  for (const a of attempts) (byAgent[a.agent] ||= []).push(a);
-  const out = {};
-  for (const [agent, list] of Object.entries(byAgent)) out[agent] = summarizeAgent(list);
+  // Map + null-prototype output: agent ids such as "constructor" or "__proto__" must not hit Object.prototype.
+  const byAgent = new Map();
+  for (const a of attempts) {
+    if (!byAgent.has(a.agent)) byAgent.set(a.agent, []);
+    byAgent.get(a.agent).push(a);
+  }
+  const out = Object.create(null);
+  for (const [agent, list] of byAgent) out[agent] = summarizeAgent(list);
   return out;
 }
 

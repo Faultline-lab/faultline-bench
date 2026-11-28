@@ -69,3 +69,14 @@ test('summarizeAll groups by agent', () => {
   assert.strictEqual(all.a.solveRate, 1);
   assert.strictEqual(all.b.solveRate, 0);
 });
+
+test('agent and scenario ids that match Object.prototype keys are safe', () => {
+  const list = [
+    { agent: 'constructor', scenario: 'toString', rep: 1, passed: true, durationMs: 1, costUsd: null },
+    { agent: '__proto__', scenario: 'hasOwnProperty', rep: 1, passed: false, durationMs: 1, costUsd: null },
+  ];
+  const all = summarizeAll(list);
+  assert.deepStrictEqual(Object.keys(all).sort(), ['__proto__', 'constructor']);
+  assert.strictEqual(all.constructor.runs, 1);
+  assert.strictEqual(all['__proto__'].solveRate, 0);
+});
