@@ -4,3 +4,4 @@ faultline-results/
 node_modules/
 .aes/
 *.tgz
+faultline-bench/test/.tmp-*/
